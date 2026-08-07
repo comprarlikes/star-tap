@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Star Tap Arcade</string>
+    <string name="title_activity_main">Star Tap Arcade</string>
+    <string name="package_name">com.startap.arcade</string>
+    <string name="custom_url_scheme">com.startap.arcade</string>
+</resources>

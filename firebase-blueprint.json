@@ -1,0 +1,21 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User state and progress data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "level": { "type": "number" },
+        "xp": { "type": "number" },
+        "coins": { "type": "number" },
+        "dailyStreak": { "type": "number" },
+        "equippedTheme": { "type": "string" },
+        "equippedParticle": { "type": "string" },
+        "equippedCharm": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    }
+  }
+}
