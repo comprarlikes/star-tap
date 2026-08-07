@@ -99,6 +99,8 @@ export const translations = {
     rewardXp: 'Experiencia Ganada',
     doubleCoinsBtn: 'DOBLAR MONEDAS (+{coins})',
     doubledBadge: '¡MONEDAS DOBLADAS!',
+    shareBtn: 'COMPARTIR',
+    shareCopied: '¡COPIADO!',
     playAgainBtn: 'JUGAR DE NUEVO',
     homeBtn: 'INICIO',
 
@@ -222,6 +224,8 @@ export const translations = {
     rewardXp: 'XP Earned',
     doubleCoinsBtn: 'DOUBLE COINS (+{coins})',
     doubledBadge: 'COINS DOUBLED!',
+    shareBtn: 'SHARE',
+    shareCopied: 'COPIED!',
     playAgainBtn: 'PLAY AGAIN',
     homeBtn: 'HOME',
 
