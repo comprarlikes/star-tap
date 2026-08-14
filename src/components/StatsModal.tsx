@@ -4,12 +4,13 @@ import { soundManager } from '../services/sound';
 import { X, BarChart2, TrendingUp } from 'lucide-react';
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
+  ReferenceLine,
 } from 'recharts';
 
 interface StatsModalProps {
@@ -119,41 +120,62 @@ export const StatsModal: React.FC<StatsModalProps> = ({ playerState, onClose }) 
             </div>
 
             {chartData.length > 0 ? (
-              <div className="w-full h-44 pt-2">
+              <div className="w-full h-48 pt-2 select-none">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="scoreColor" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                  <LineChart data={chartData} margin={{ top: 12, right: 12, left: -18, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.35} />
+                    <XAxis
+                      dataKey="name"
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      tickLine={false}
+                      dy={4}
+                    />
+                    <YAxis
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => (val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val)}
+                    />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: '#0f172a',
-                        borderColor: '#334155',
+                        borderColor: '#f59e0b',
+                        borderWidth: '1px',
                         borderRadius: '0.75rem',
                         color: '#fff',
                         fontSize: '12px',
                         fontWeight: 'bold',
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
+                        boxShadow: '0 10px 25px -5px rgba(245, 158, 11, 0.3)',
                       }}
                       formatter={(value: any) => [`${Number(value).toLocaleString()} pts`, 'Puntuación']}
                       labelFormatter={(label: string) => `Partida ${label}`}
                     />
-                    <Area
+                    {averageScore > 0 && (
+                      <ReferenceLine
+                        y={averageScore}
+                        stroke="#06b6d4"
+                        strokeDasharray="4 4"
+                        strokeWidth={1.5}
+                        label={{
+                          value: `Promed: ${averageScore.toLocaleString()} pts`,
+                          fill: '#22d3ee',
+                          fontSize: 9,
+                          position: 'insideTopRight',
+                        }}
+                      />
+                    )}
+                    <Line
                       type="monotone"
                       dataKey="score"
-                      stroke="#fbbf24"
-                      strokeWidth={3}
-                      fillOpacity={1}
-                      fill="url(#scoreColor)"
-                      activeDot={{ r: 6, fill: '#fef08a', stroke: '#f59e0b', strokeWidth: 2 }}
+                      name="Puntuación"
+                      stroke="#f59e0b"
+                      strokeWidth={3.5}
+                      dot={{ r: 4.5, fill: '#fbbf24', stroke: '#78350f', strokeWidth: 2 }}
+                      activeDot={{ r: 7, fill: '#fef08a', stroke: '#f59e0b', strokeWidth: 3 }}
                     />
-                  </AreaChart>
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
             ) : (

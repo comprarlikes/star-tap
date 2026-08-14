@@ -19,26 +19,41 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'global' | 'tournament'>('tournament');
   const [showPrizeRules, setShowPrizeRules] = useState<boolean>(false);
-  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number }>({
-    days: 3,
-    hours: 14,
-    minutes: 25,
-    seconds: 40,
-  });
+  // Dynamic countdown calculation for Weekly Tournament (ends on Sunday at 23:59:59)
+  const calculateTimeLeft = () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const daysToSunday = (7 - dayOfWeek) % 7;
+    const target = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + daysToSunday,
+      23,
+      59,
+      59
+    );
+    const diff = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 1000));
+
+    const days = Math.floor(diff / 86400);
+    const hours = Math.floor((diff % 86400) / 3600);
+    const minutes = Math.floor((diff % 3600) / 60);
+    const seconds = diff % 60;
+
+    return { days, hours, minutes, seconds };
+  };
+
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft);
 
   const lang = playerState.language || 'es';
 
-  // Dynamic countdown for Weekly Tournament
+  // Dynamic countdown timer update
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
-        if (prev.minutes > 0) return { ...prev, minutes: 59, seconds: 59 };
-        if (prev.hours > 0) return { ...prev, hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        if (prev.days > 0) return { ...prev, days: prev.days - 1, hours: 23, minutes: 59, seconds: 59 };
-        return prev;
-      });
-    }, 1000);
+    const updateTimer = () => {
+      setTimeLeft(calculateTimeLeft());
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -163,7 +178,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   <Clock className="w-3 h-3 text-pink-400" /> {t('endsIn', lang)}
                 </span>
                 <span className="text-xs font-mono font-bold text-amber-300">
-                  {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s
+                  {timeLeft.days}d {String(timeLeft.hours).padStart(2, '0')}h {String(timeLeft.minutes).padStart(2, '0')}m {String(timeLeft.seconds).padStart(2, '0')}s
                 </span>
               </div>
             </div>

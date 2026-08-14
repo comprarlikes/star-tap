@@ -13,7 +13,7 @@ export const ADMOB_CONSENT_AD_ID = 'ca-app-pub-4623925469377930/2039134652';
 export const ADMOB_INTERSTITIAL_ID = 'ca-app-pub-4623925469377930/5770819509'; // Rewarded Interstitial Ad Unit
 export const ADMOB_REWARDED_INTERSTITIAL_ID = 'ca-app-pub-4623925469377930/5770819509';
 export const ADMOB_BANNER_ID = 'ca-app-pub-3940256099942544/6300978111'; // Standard test banner
-export const ADMOB_REWARDED_ID = 'ca-app-pub-3940256099942544/5224354917'; // Standard test rewarded
+export const ADMOB_REWARDED_ID = 'ca-app-pub-4623925469377930/5770819509';
 
 let isInitialized = false;
 let isListenersRegistered = false;

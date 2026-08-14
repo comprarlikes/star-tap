@@ -35,6 +35,46 @@ interface GameOverModalProps {
   language?: Language;
 }
 
+// Hook for smooth animated counter from 0 to target value
+function useCountUp(targetValue: number, duration: number = 1200) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let startTimestamp: number | null = null;
+    let animationFrameId: number;
+    let initialVal = 0;
+
+    setCount((prev) => {
+      initialVal = prev;
+      return prev;
+    });
+
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      // Smooth cubic ease-out curve
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      const currentValue = Math.round(initialVal + (targetValue - initialVal) * easedProgress);
+
+      setCount(currentValue);
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(step);
+      } else {
+        setCount(targetValue);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
+  }, [targetValue, duration]);
+
+  return count;
+}
+
 export const GameOverModal: React.FC<GameOverModalProps> = ({
   score,
   stats,
@@ -53,6 +93,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   const lang: Language = language === 'en' ? 'en' : 'es';
   const [showAdMobModal, setShowAdMobModal] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+
+  // Animated count-up numbers when modal mounts or values change
+  const animatedScore = useCountUp(score, 1200);
+  const animatedCoins = useCountUp(coinsEarned, 1000);
+  const animatedXp = useCountUp(xpEarned, 1000);
 
   const handleShare = async () => {
     soundManager.playButtonClick();
@@ -146,7 +191,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               </span>
             </div>
             <div className="text-[11px] font-semibold text-slate-300 bg-slate-900/60 px-3 py-1 rounded-xl border border-slate-800">
-              {t('yourScore', lang)}: <span className="text-amber-300 font-bold">{score.toLocaleString()}</span> {t('vsGhost', lang)}: <span className="text-cyan-300 font-bold">{duelResult.ghostScore.toLocaleString()}</span>
+              {t('yourScore', lang)}: <span className="text-amber-300 font-bold">{animatedScore.toLocaleString()}</span> {t('vsGhost', lang)}: <span className="text-cyan-300 font-bold">{duelResult.ghostScore.toLocaleString()}</span>
             </div>
             {duelResult.isVictory && (
               <span className="mt-0.5 text-[10px] font-black text-emerald-300 bg-emerald-950/90 px-3 py-0.5 rounded-full border border-emerald-500/50 animate-bounce shadow-md">
@@ -172,7 +217,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             {lang === 'en' ? 'Final Score' : 'Puntuación Final'}
           </span>
           <span className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)] mt-0.5 relative z-10 tracking-tight">
-            {score.toLocaleString()}
+            {animatedScore.toLocaleString()}
           </span>
         </div>
 
@@ -205,7 +250,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             <span className="text-2xl drop-shadow">🪙</span>
             <div className="flex flex-col items-start">
               <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">{t('rewardCoins', lang)}</span>
-              <span className="text-base font-black text-amber-400">+{coinsEarned}</span>
+              <span className="text-base font-black text-amber-400">+{animatedCoins}</span>
             </div>
           </div>
 
@@ -215,7 +260,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             <span className="text-2xl drop-shadow">✨</span>
             <div className="flex flex-col items-start">
               <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">{t('rewardXp', lang)}</span>
-              <span className="text-base font-black text-purple-400">+{xpEarned} XP</span>
+              <span className="text-base font-black text-purple-400">+{animatedXp} XP</span>
             </div>
           </div>
         </div>

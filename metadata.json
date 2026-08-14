@@ -1,6 +1,6 @@
 {
   "name": "Star Tap Arcade",
-  "description": "Un juego arcade de toques súper adictivo con estrellas especiales, bombas, multiplicadores, combos, misiones diarias, tienda de personajes, skins y clasificación.",
+  "description": "Un juego arcade de toques súper adictivo con modo multijugador 1v1 en tiempo real, arenas competitivas, showdown cinematográfico, estrellas especiales, bombas, multiplicadores, combos, misiones diarias, tienda de personajes, skins y clasificación global.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -7,7 +7,9 @@ import {
   Achievement, 
   Quest, 
   LeaderboardEntry,
-  GhostRival 
+  GhostRival,
+  MultiplayerArena,
+  MultiplayerOpponent
 } from './types';
 import { 
   loadPlayerState, 
@@ -34,24 +36,43 @@ import { GameOverModal } from './components/GameOverModal';
 import { ShopModal } from './components/ShopModal';
 import { QuestsModal } from './components/QuestsModal';
 import { AchievementsModal } from './components/AchievementsModal';
+import { AchievementToast, ToastItem } from './components/AchievementToast';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { StatsModal } from './components/StatsModal';
 import { ProfileModal } from './components/ProfileModal';
+import { AvatarSelectorModal } from './components/AvatarSelectorModal';
+import { TutorialOverlay } from './components/TutorialOverlay';
 import { AuthModal } from './components/AuthModal';
+import { getAvatarById } from './data/avatars';
 import { AppOpenAdModal } from './components/AppOpenAdModal';
+import { AdMobRewardedModal } from './components/AdMobRewardedModal';
 import { EuConsentModal } from './components/EuConsentModal';
+import { SplashScreen } from './components/SplashScreen';
+import { DailyLoginBonusModal } from './components/DailyLoginBonusModal';
+import { LuckySpinModal } from './components/LuckySpinModal';
+import { MultiplayerLobbyModal } from './components/MultiplayerLobbyModal';
+import { MultiplayerVersusShowdown } from './components/MultiplayerVersusShowdown';
+import { MultiplayerResultModal } from './components/MultiplayerResultModal';
+import { ARENAS } from './data/multiplayerArenas';
 import { initializeAdMob, prepareAndShowInterstitialAd } from './services/admob';
 import { hapticManager } from './services/haptics';
 import { 
   initNotifications, 
   notifyDailyQuestsUpdated, 
   notifyLevelUpReward, 
-  scheduleDailyQuestReminder 
+  scheduleDailyQuestReminder,
+  cancelDailyQuestReminder,
+  toggleDailyQuestReminder
 } from './services/notifications';
 import { Smartphone } from 'lucide-react';
 
 export default function App() {
   const [playerState, setPlayerState] = useState<PlayerState>(loadPlayerState);
+  const [showSplashScreen, setShowSplashScreen] = useState<boolean>(true);
+  const [showDailyBonusModal, setShowDailyBonusModal] = useState<boolean>(false);
+  const [showLuckySpinModal, setShowLuckySpinModal] = useState<boolean>(false);
+  const [pendingDailyBonusAd, setPendingDailyBonusAd] = useState<{ coins: number; xp: number } | null>(null);
+  const [pendingSpinAd, setPendingSpinAd] = useState<boolean>(false);
   const [gameMode, setGameMode] = useState<GameMode>('blitz');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isMobileFrame, setIsMobileFrame] = useState<boolean>(false);
@@ -59,20 +80,180 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
   const [duelGhostRival, setDuelGhostRival] = useState<GhostRival | null>(null);
-  const [showAppOpenAd, setShowAppOpenAd] = useState<boolean>(true);
+
+  // 1v1 Real-Time Multiplayer State
+  const [showMultiplayerLobby, setShowMultiplayerLobby] = useState<boolean>(false);
+  const [activeMultiplayerArena, setActiveMultiplayerArena] = useState<MultiplayerArena | null>(null);
+  const [activeMultiplayerOpponent, setActiveMultiplayerOpponent] = useState<MultiplayerOpponent | null>(null);
+  const [showVersusShowdown, setShowVersusShowdown] = useState<boolean>(false);
+  const [multiplayerResultData, setMultiplayerResultData] = useState<{
+    isWinner: boolean;
+    playerScore: number;
+    opponentScore: number;
+    matchStats: {
+      starsTapped: number;
+      normal: number;
+      golden: number;
+      diamond: number;
+      bombsHit: number;
+      bombsAvoided: number;
+      maxCombo: number;
+    };
+    arena: MultiplayerArena;
+    opponent: MultiplayerOpponent;
+    trophiesDelta: number;
+    coinsDelta: number;
+  } | null>(null);
+
+  const [showAppOpenAd, setShowAppOpenAd] = useState<boolean>(false);
+  const [showShopRewardedAd, setShowShopRewardedAd] = useState<boolean>(false);
   const [showEuConsentModal, setShowEuConsentModal] = useState<boolean>(() => {
     return localStorage.getItem('eu_gdpr_consent_accepted') !== 'true';
+  });
+  const [isTutorialActive, setIsTutorialActive] = useState<boolean>(() => {
+    return !playerState.hasSeenTutorial && playerState.stats.gamesPlayed === 0;
   });
 
   // Modals
   const [activeModal, setActiveModal] = useState<
-    'shop' | 'quests' | 'achievements' | 'leaderboard' | 'stats' | 'profile' | 'auth' | null
+    'shop' | 'quests' | 'achievements' | 'leaderboard' | 'stats' | 'profile' | 'auth' | 'avatar' | null
   >(null);
 
   // Quests & Achievements Data
   const [quests, setQuests] = useState<Quest[]>(generateDailyQuests);
   const [achievements, setAchievements] = useState<Achievement[]>(loadAchievements);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(loadLeaderboard);
+
+  // Real-time Achievement & Quest Toast Notifications
+  const [toastQueue, setToastQueue] = useState<ToastItem[]>([]);
+  const [activeAchievementToast, setActiveAchievementToast] = useState<ToastItem | null>(null);
+
+  // Manage toast queue popup sequence
+  useEffect(() => {
+    if (!activeAchievementToast && toastQueue.length > 0) {
+      const [nextToast, ...remaining] = toastQueue;
+      setActiveAchievementToast(nextToast);
+      setToastQueue(remaining);
+    }
+  }, [toastQueue, activeAchievementToast]);
+
+  // Real-time gameplay achievement & quest check
+  const handleLiveProgress = useCallback(
+    (liveStats: { score: number; combo: number; starsTapped: number; diamond: number; golden: number }) => {
+      // 1. Check Achievements
+      setAchievements((prevAch) => {
+        const newlyUnlocked: ToastItem[] = [];
+        let hasChanges = false;
+
+        const updated = prevAch.map((ach) => {
+          let newProgress = ach.progress;
+          const totalStars = playerState.stats.totalStarsTapped + liveStats.starsTapped;
+          const totalDiamonds = playerState.stats.diamondTapped + liveStats.diamond;
+          const totalGolden = playerState.stats.goldenTapped + liveStats.golden;
+
+          if (ach.id === 'tap_50_stars') newProgress = totalStars;
+          if (ach.id === 'tap_250_stars') newProgress = totalStars;
+          if (ach.id === 'tap_1000_stars') newProgress = totalStars;
+          if (ach.id === 'diamond_collector') newProgress = totalDiamonds;
+          if (ach.id === 'golden_star_master') newProgress = totalGolden;
+          if (ach.id === 'combo_10') newProgress = Math.max(ach.progress, liveStats.combo);
+          if (ach.id === 'combo_20') newProgress = Math.max(ach.progress, liveStats.combo);
+          if (ach.id === 'combo_30') newProgress = Math.max(ach.progress, liveStats.combo);
+          if (ach.id === 'score_300') newProgress = Math.max(ach.progress, liveStats.score);
+          if (ach.id === 'score_700') newProgress = Math.max(ach.progress, liveStats.score);
+          if (ach.id === 'score_1500') newProgress = Math.max(ach.progress, liveStats.score);
+
+          const isUnlocked = newProgress >= ach.target;
+
+          if (isUnlocked && !ach.unlocked) {
+            hasChanges = true;
+            const unlockedItem = { ...ach, progress: newProgress, unlocked: true };
+            newlyUnlocked.push({
+              id: ach.id,
+              type: 'achievement',
+              title: ach.title,
+              description: ach.description,
+              icon: ach.icon,
+              rewardCoins: ach.rewardCoins,
+              rewardXp: ach.rewardXp,
+            });
+            return unlockedItem;
+          }
+
+          if (newProgress !== ach.progress) {
+            hasChanges = true;
+            return { ...ach, progress: newProgress, unlocked: isUnlocked };
+          }
+
+          return ach;
+        });
+
+        if (newlyUnlocked.length > 0) {
+          setToastQueue((prev) => [...prev, ...newlyUnlocked]);
+        }
+
+        if (hasChanges) {
+          saveAchievements(updated);
+          return updated;
+        }
+
+        return prevAch;
+      });
+
+      // 2. Check Daily Quests
+      setQuests((prevQuests) => {
+        const newlyCompletedQuests: ToastItem[] = [];
+        let questChanges = false;
+
+        const updatedQuests = prevQuests.map((q) => {
+          let newProgress = q.progress;
+
+          if (q.id === 'quest_1') {
+            newProgress = Math.max(q.progress, liveStats.golden);
+          } else if (q.id === 'quest_2') {
+            newProgress = Math.max(q.progress, liveStats.score);
+          } else if (q.id === 'quest_3') {
+            newProgress = Math.max(q.progress, liveStats.combo);
+          }
+
+          const isCompleted = newProgress >= q.target;
+
+          if (isCompleted && !q.completed) {
+            questChanges = true;
+            newlyCompletedQuests.push({
+              id: q.id,
+              type: 'quest',
+              title: q.title,
+              description: q.description,
+              icon: q.icon,
+              rewardCoins: q.rewardCoins,
+              rewardXp: q.rewardXp,
+            });
+            return { ...q, progress: newProgress, completed: true };
+          }
+
+          if (newProgress !== q.progress) {
+            questChanges = true;
+            return { ...q, progress: newProgress, completed: isCompleted };
+          }
+
+          return q;
+        });
+
+        if (newlyCompletedQuests.length > 0) {
+          setToastQueue((prev) => [...prev, ...newlyCompletedQuests]);
+        }
+
+        if (questChanges) {
+          localStorage.setItem('star_tap_daily_quests', JSON.stringify(updatedQuests));
+          return updatedQuests;
+        }
+
+        return prevQuests;
+      });
+    },
+    [playerState.stats.totalStarsTapped, playerState.stats.diamondTapped]
+  );
 
   // Initialize Firebase Auth, Realtime Cloud Sync, AdMob & Push Notifications
   useEffect(() => {
@@ -81,14 +262,20 @@ export default function App() {
     // Initialize Push & Local Notifications
     initNotifications().then((granted) => {
       console.log('[App] Push notifications granted:', granted);
-      scheduleDailyQuestReminder();
+      if (playerState.questRemindersEnabled !== false) {
+        scheduleDailyQuestReminder();
+      } else {
+        cancelDailyQuestReminder();
+      }
 
       // Notify daily quests updated if not notified today
-      const todayStr = new Date().toISOString().split('T')[0];
-      const lastNotified = localStorage.getItem('star_tap_last_quest_notified');
-      if (lastNotified !== todayStr) {
-        notifyDailyQuestsUpdated(quests.length);
-        localStorage.setItem('star_tap_last_quest_notified', todayStr);
+      if (playerState.questRemindersEnabled !== false) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const lastNotified = localStorage.getItem('star_tap_last_quest_notified');
+        if (lastNotified !== todayStr) {
+          notifyDailyQuestsUpdated(quests.length);
+          localStorage.setItem('star_tap_last_quest_notified', todayStr);
+        }
       }
     });
 
@@ -207,8 +394,8 @@ export default function App() {
     ) => {
       setIsPlaying(false);
 
-      // Base Coins Calculation (1 pt = 1 coin)
-      let coinsGained = Math.max(10, Math.floor(finalScore * 1.0));
+      // Base Coins Calculation (Balanced: 10% score + 1 per Golden + 3 per Diamond)
+      let coinsGained = Math.max(3, Math.floor(finalScore * 0.10) + finalStats.golden * 1 + finalStats.diamond * 3);
 
       // Companion Bonus: Astro Dog (+15% Coins)
       if (playerState.equippedCharacter === 'char_astro_dog') {
@@ -218,6 +405,22 @@ export default function App() {
       // Skin Bonus: Dulce Caramelo (+10% Coins)
       if (playerState.equippedSkin === 'skin_candy') {
         coinsGained = Math.floor(coinsGained * 1.10);
+      }
+
+      // Active Booster: Double Coins check
+      const nextBoosters = { ...(playerState.activeBoosters || {}) };
+      if ((nextBoosters.double_coins || 0) > 0) {
+        coinsGained = coinsGained * 2;
+        nextBoosters.double_coins = Math.max(0, (nextBoosters.double_coins || 0) - 1);
+      }
+      if ((nextBoosters.extra_shield || 0) > 0) {
+        nextBoosters.extra_shield = Math.max(0, (nextBoosters.extra_shield || 0) - 1);
+      }
+      if ((nextBoosters.time_bonus_boost || 0) > 0) {
+        nextBoosters.time_bonus_boost = Math.max(0, (nextBoosters.time_bonus_boost || 0) - 1);
+      }
+      if ((nextBoosters.star_magnet_boost || 0) > 0) {
+        nextBoosters.star_magnet_boost = Math.max(0, (nextBoosters.star_magnet_boost || 0) - 1);
       }
 
       // Base XP Calculation (1 pt = 0.5 XP + combo bonus)
@@ -234,8 +437,8 @@ export default function App() {
 
       if (gameMode === 'duel' && duelGhostRival) {
         const isVictory = finalScore >= duelGhostRival.score;
-        const bonusCoins = isVictory ? 150 : 0;
-        const bonusXp = isVictory ? 200 : 0;
+        const bonusCoins = isVictory ? 35 : 0;
+        const bonusXp = isVictory ? 60 : 0;
         coinsGained += bonusCoins;
         xpGained += bonusXp;
 
@@ -263,7 +466,7 @@ export default function App() {
 
       if (didLevelUp) {
         soundManager.playLevelUp();
-        const levelUpBonus = nextLevel * 50;
+        const levelUpBonus = Math.min(200, 20 + nextLevel * 10);
         coinsGained += levelUpBonus; // Level up reward coins!
         notifyLevelUpReward(nextLevel, levelUpBonus);
       }
@@ -295,6 +498,7 @@ export default function App() {
         coins: prev.coins + coinsGained,
         xp: nextXp,
         level: nextLevel,
+        activeBoosters: nextBoosters,
         stats: nextStats,
       }));
 
@@ -305,8 +509,8 @@ export default function App() {
           name: playerState.name,
           score: finalScore,
           level: nextLevel,
-          avatar: '⭐',
-          flag: '🇪🇸',
+          avatar: getAvatarById(playerState.avatar).emoji,
+          flag: '🇲🇽',
           date: 'Hoy',
           isUser: true,
         };
@@ -339,28 +543,55 @@ export default function App() {
 
       // Update Achievements Progress
       setAchievements((prevAch) => {
+        const newlyUnlockedAtGameOver: Achievement[] = [];
         const updated = prevAch.map((ach) => {
           let newProgress = ach.progress;
           if (ach.id === 'first_game') newProgress = 1;
           if (ach.id === 'tap_50_stars') newProgress = nextStats.totalStarsTapped;
           if (ach.id === 'tap_250_stars') newProgress = nextStats.totalStarsTapped;
+          if (ach.id === 'tap_1000_stars') newProgress = nextStats.totalStarsTapped;
           if (ach.id === 'diamond_collector') newProgress = nextStats.diamondTapped;
+          if (ach.id === 'golden_star_master') newProgress = nextStats.goldenTapped;
           if (ach.id === 'combo_10') newProgress = Math.max(ach.progress, finalStats.maxCombo);
           if (ach.id === 'combo_20') newProgress = Math.max(ach.progress, finalStats.maxCombo);
+          if (ach.id === 'combo_30') newProgress = Math.max(ach.progress, finalStats.maxCombo);
           if (ach.id === 'score_300') newProgress = Math.max(ach.progress, finalScore);
           if (ach.id === 'score_700') newProgress = Math.max(ach.progress, finalScore);
+          if (ach.id === 'score_1500') newProgress = Math.max(ach.progress, finalScore);
           if (ach.id === 'bomb_dodger' && finalStats.bombsHit === 0) newProgress = 1;
+          if (ach.id === 'bombs_avoided_50') newProgress = nextStats.bombsAvoided;
           if (ach.id === 'coins_1000') newProgress = nextStats.totalCoinsEarned;
+          if (ach.id === 'coins_5000') newProgress = nextStats.totalCoinsEarned;
           if (ach.id === 'reach_level_5') newProgress = nextLevel;
+          if (ach.id === 'reach_level_10') newProgress = nextLevel;
           if (ach.id === 'skin_collector') newProgress = playerState.unlockedSkins.length;
+          if (ach.id === 'full_armory') newProgress = playerState.unlockedSkins.length;
 
           const isUnlocked = newProgress >= ach.target;
+          if (isUnlocked && !ach.unlocked) {
+            newlyUnlockedAtGameOver.push({ ...ach, progress: newProgress, unlocked: true });
+          }
+
           return {
             ...ach,
             progress: newProgress,
             unlocked: isUnlocked,
           };
         });
+
+        if (newlyUnlockedAtGameOver.length > 0) {
+          const gameOverToasts: ToastItem[] = newlyUnlockedAtGameOver.map((ach) => ({
+            id: ach.id,
+            type: 'achievement',
+            title: ach.title,
+            description: ach.description,
+            icon: ach.icon,
+            rewardCoins: ach.rewardCoins,
+            rewardXp: ach.rewardXp,
+          }));
+          setToastQueue((prev) => [...prev, ...gameOverToasts]);
+        }
+
         saveAchievements(updated);
         return updated;
       });
@@ -413,6 +644,282 @@ export default function App() {
     );
   };
 
+  // 1v1 Multiplayer Match Flow Handlers
+  const handleOpenMultiplayerLobby = () => {
+    soundManager.playButtonClick();
+    hapticManager.mediumTap();
+    setGameOverData(null);
+    setMultiplayerResultData(null);
+    setShowMultiplayerLobby(true);
+  };
+
+  const handlePlayerSendEmote = (emoji: string) => {
+    setPlayerState((prev) => {
+      const nextEmotes = (prev.stats.emotesSent || 0) + 1;
+      const nextStats = {
+        ...prev.stats,
+        emotesSent: nextEmotes,
+      };
+      const nextState = { ...prev, stats: nextStats };
+      savePlayerState(nextState);
+      return nextState;
+    });
+
+    setAchievements((prevAch) => {
+      const newlyUnlocked: Achievement[] = [];
+      const updated = prevAch.map((ach) => {
+        let newProgress = ach.progress;
+        if (ach.id === 'social_emotes_10') {
+          newProgress = (playerState.stats.emotesSent || 0) + 1;
+        }
+        const isUnlocked = newProgress >= ach.target;
+        if (isUnlocked && !ach.unlocked) {
+          newlyUnlocked.push({ ...ach, progress: newProgress, unlocked: true });
+        }
+        return { ...ach, progress: newProgress, unlocked: isUnlocked };
+      });
+
+      if (newlyUnlocked.length > 0) {
+        const toasts: ToastItem[] = newlyUnlocked.map((ach) => ({
+          id: ach.id,
+          type: 'achievement',
+          title: ach.title,
+          description: ach.description,
+          icon: ach.icon,
+          rewardCoins: ach.rewardCoins,
+          rewardXp: ach.rewardXp,
+        }));
+        setToastQueue((prev) => [...prev, ...toasts]);
+      }
+      saveAchievements(updated);
+      return updated;
+    });
+  };
+
+  const handleMatchFound = (
+    arena: MultiplayerArena,
+    opponent: MultiplayerOpponent,
+    isPrivateRoom?: boolean
+  ) => {
+    // Deduct entry fee
+    setPlayerState((prev) => {
+      const nextCoins = Math.max(0, prev.coins - arena.entryFee);
+      const nextFriendly = isPrivateRoom
+        ? (prev.stats.friendlyDuelsPlayed || 0) + 1
+        : (prev.stats.friendlyDuelsPlayed || 0);
+      const nextState = {
+        ...prev,
+        coins: nextCoins,
+        stats: {
+          ...prev.stats,
+          friendlyDuelsPlayed: nextFriendly,
+        },
+      };
+      savePlayerState(nextState);
+      return nextState;
+    });
+
+    if (isPrivateRoom) {
+      setAchievements((prevAch) => {
+        const newlyUnlocked: Achievement[] = [];
+        const updated = prevAch.map((ach) => {
+          let newProgress = ach.progress;
+          if (ach.id === 'social_private_room') {
+            newProgress = 1;
+          }
+          const isUnlocked = newProgress >= ach.target;
+          if (isUnlocked && !ach.unlocked) {
+            newlyUnlocked.push({ ...ach, progress: newProgress, unlocked: true });
+          }
+          return { ...ach, progress: newProgress, unlocked: isUnlocked };
+        });
+        if (newlyUnlocked.length > 0) {
+          const toasts: ToastItem[] = newlyUnlocked.map((ach) => ({
+            id: ach.id,
+            type: 'achievement',
+            title: ach.title,
+            description: ach.description,
+            icon: ach.icon,
+            rewardCoins: ach.rewardCoins,
+            rewardXp: ach.rewardXp,
+          }));
+          setToastQueue((prev) => [...prev, ...toasts]);
+        }
+        saveAchievements(updated);
+        return updated;
+      });
+    }
+
+    setActiveMultiplayerArena(arena);
+    setActiveMultiplayerOpponent(opponent);
+    setShowMultiplayerLobby(false);
+    setShowVersusShowdown(true);
+  };
+
+  const handleShowdownIntroComplete = () => {
+    setShowVersusShowdown(false);
+    setGameMode('duel');
+    setIsPlaying(true);
+  };
+
+  const handleMultiplayerGameOver = (
+    isWinner: boolean,
+    playerScore: number,
+    opponentScore: number,
+    finalStats: {
+      starsTapped: number;
+      normal: number;
+      golden: number;
+      diamond: number;
+      bombsHit: number;
+      bombsAvoided: number;
+      maxCombo: number;
+    }
+  ) => {
+    setIsPlaying(false);
+    const arena = activeMultiplayerArena || ARENAS[0];
+    const opponent = activeMultiplayerOpponent || {
+      id: 'opp_default',
+      name: 'Rival Estelar',
+      avatar: '🦊',
+      flag: '🌐',
+      league: 'Plata',
+      trophies: 450,
+      winRate: 50,
+      ping: 25,
+      skillMultiplier: 1.0,
+      targetScore: 280,
+    };
+
+    const trophiesDelta = isWinner ? arena.trophiesReward : -arena.trophiesLoss;
+    const coinsDelta = isWinner ? arena.prizeCoins : Math.floor(arena.entryFee * 0.2);
+
+    // Update Player Trophies and Multiplayer Stats
+    let nextStatsUpdated: any = null;
+    let nextTrophiesUpdated = 0;
+
+    setPlayerState((prev) => {
+      const curTrophies = prev.trophies || 0;
+      const newTrophies = Math.max(0, curTrophies + trophiesDelta);
+      const nextCoins = prev.coins + coinsDelta;
+      const prevStreak = prev.stats.multiplayerStreak || 0;
+      const newStreak = isWinner ? prevStreak + 1 : 0;
+      const highestStreak = Math.max(prev.stats.highestStreak || 0, newStreak);
+      const updatedArenas = Array.from(new Set([...(prev.stats.arenasPlayed || []), arena.id]));
+
+      const nextStats = {
+        ...prev.stats,
+        multiplayerWins: (prev.stats.multiplayerWins || 0) + (isWinner ? 1 : 0),
+        multiplayerLosses: (prev.stats.multiplayerLosses || 0) + (isWinner ? 0 : 1),
+        multiplayerStreak: newStreak,
+        highestStreak,
+        arenasPlayed: updatedArenas,
+        multiplayerMatchesPlayed: (prev.stats.multiplayerMatchesPlayed || 0) + 1,
+        totalStarsTapped: prev.stats.totalStarsTapped + finalStats.starsTapped,
+        goldenTapped: prev.stats.goldenTapped + finalStats.golden,
+        diamondTapped: prev.stats.diamondTapped + finalStats.diamond,
+        bombsAvoided: prev.stats.bombsAvoided + finalStats.bombsAvoided,
+        totalCoinsEarned: prev.stats.totalCoinsEarned + coinsDelta,
+      };
+
+      nextStatsUpdated = nextStats;
+      nextTrophiesUpdated = newTrophies;
+
+      const nextState: PlayerState = {
+        ...prev,
+        trophies: newTrophies,
+        coins: nextCoins,
+        stats: nextStats,
+      };
+      savePlayerState(nextState);
+      if (userId) savePlayerStateToCloud(userId, nextState);
+      return nextState;
+    });
+
+    // Check & Unlock Multiplayer & Social Achievements
+    setAchievements((prevAch) => {
+      const newlyUnlocked: Achievement[] = [];
+      const updated = prevAch.map((ach) => {
+        let newProgress = ach.progress;
+        if (ach.id === 'social_first_win' && isWinner) newProgress = Math.max(ach.progress, 1);
+        if (ach.id === 'social_mp_win_5') newProgress = (nextStatsUpdated?.multiplayerWins || 0);
+        if (ach.id === 'social_mp_win_20') newProgress = (nextStatsUpdated?.multiplayerWins || 0);
+        if (ach.id === 'social_streak_3') newProgress = Math.max(ach.progress, nextStatsUpdated?.highestStreak || 0);
+        if (ach.id === 'social_streak_5') newProgress = Math.max(ach.progress, nextStatsUpdated?.highestStreak || 0);
+        if (ach.id === 'social_streak_10') newProgress = Math.max(ach.progress, nextStatsUpdated?.highestStreak || 0);
+        if (ach.id === 'social_arenas_distinct_3') newProgress = (nextStatsUpdated?.arenasPlayed || []).length;
+        if (ach.id === 'social_arenas_distinct_5') newProgress = (nextStatsUpdated?.arenasPlayed || []).length;
+        if (ach.id === 'social_emotes_10') newProgress = (nextStatsUpdated?.emotesSent || 0);
+        if (ach.id === 'social_private_room') newProgress = (nextStatsUpdated?.friendlyDuelsPlayed || 0);
+        if (ach.id === 'social_trophies_500') newProgress = Math.max(ach.progress, nextTrophiesUpdated);
+
+        const isUnlocked = newProgress >= ach.target;
+        if (isUnlocked && !ach.unlocked) {
+          newlyUnlocked.push({ ...ach, progress: newProgress, unlocked: true });
+        }
+
+        return {
+          ...ach,
+          progress: newProgress,
+          unlocked: isUnlocked,
+        };
+      });
+
+      if (newlyUnlocked.length > 0) {
+        const toasts: ToastItem[] = newlyUnlocked.map((ach) => ({
+          id: ach.id,
+          type: 'achievement',
+          title: ach.title,
+          description: ach.description,
+          icon: ach.icon,
+          rewardCoins: ach.rewardCoins,
+          rewardXp: ach.rewardXp,
+        }));
+        setToastQueue((prev) => [...prev, ...toasts]);
+      }
+
+      saveAchievements(updated);
+      return updated;
+    });
+
+    setMultiplayerResultData({
+      isWinner,
+      playerScore,
+      opponentScore,
+      matchStats: finalStats,
+      arena,
+      opponent,
+      trophiesDelta,
+      coinsDelta,
+    });
+  };
+
+  const handleMultiplayerRematch = () => {
+    if (!activeMultiplayerArena) return;
+    if (playerState.coins < activeMultiplayerArena.entryFee) {
+      soundManager.playBombExplosion();
+      hapticManager.heavyTap();
+      return;
+    }
+
+    setMultiplayerResultData(null);
+    // Deduct entry fee and replay showdown
+    setPlayerState((prev) => {
+      const nextCoins = Math.max(0, prev.coins - activeMultiplayerArena.entryFee);
+      const nextState = { ...prev, coins: nextCoins };
+      savePlayerState(nextState);
+      return nextState;
+    });
+
+    setShowVersusShowdown(true);
+  };
+
+  const handleMultiplayerBackToLobby = () => {
+    setMultiplayerResultData(null);
+    setActiveMultiplayerOpponent(null);
+    setShowMultiplayerLobby(true);
+  };
+
   // Claim Quest Reward
   const handleClaimQuest = (questId: string) => {
     const quest = quests.find((q) => q.id === questId);
@@ -449,17 +956,130 @@ export default function App() {
     });
   };
 
-  // Claim Daily Login Streak Reward
-  const handleClaimDailyLogin = () => {
+  // Handle Splash Screen Finished
+  const handleFinishSplash = () => {
+    setShowSplashScreen(false);
     const todayStr = new Date().toISOString().split('T')[0];
-    if (playerState.lastDailyClaim === todayStr) return;
+    if (playerState.lastDailyClaim !== todayStr) {
+      setTimeout(() => {
+        setShowDailyBonusModal(true);
+      }, 300);
+    }
+  };
 
-    setPlayerState((prev) => ({
+  // Claim Daily Login Streak Reward
+  const handleClaimDailyBonus = (reward: { coins: number; xp: number }, isDoubled = false) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const multiplier = isDoubled ? 2 : 1;
+    const finalCoins = reward.coins * multiplier;
+    const finalXp = reward.xp * multiplier;
+
+    setPlayerState((prev) => {
+      let nextXp = prev.xp + finalXp;
+      let nextLevel = prev.level;
+      let requiredXp = getXpForNextLevel(nextLevel);
+
+      while (nextXp >= requiredXp) {
+        nextXp -= requiredXp;
+        nextLevel += 1;
+        requiredXp = getXpForNextLevel(nextLevel);
+        notifyLevelUpReward(nextLevel, nextLevel * 50);
+      }
+
+      const nextStats = {
+        ...prev.stats,
+        totalCoinsEarned: prev.stats.totalCoinsEarned + finalCoins,
+        totalXpEarned: prev.stats.totalXpEarned + finalXp,
+      };
+
+      const newState: PlayerState = {
+        ...prev,
+        coins: prev.coins + finalCoins,
+        xp: nextXp,
+        level: nextLevel,
+        dailyStreak: prev.dailyStreak + 1,
+        lastDailyClaim: todayStr,
+        stats: nextStats,
+      };
+
+      savePlayerState(newState);
+      if (userId) savePlayerStateToCloud(userId, newState);
+      return newState;
+    });
+
+    setToastQueue((prev) => [
       ...prev,
-      coins: prev.coins + 300,
-      dailyStreak: prev.dailyStreak + 1,
-      lastDailyClaim: todayStr,
-    }));
+      {
+        id: `daily_${Date.now()}`,
+        type: 'quest',
+        title: isDoubled ? '¡RECOMPENSA DIARIA x2!' : '¡RECOMPENSA DIARIA RECLAMADA!',
+        description: `Has obtenido +${finalCoins} 🪙 y +${finalXp} XP.`,
+        icon: isDoubled ? '👑' : '🎁',
+        rewardCoins: finalCoins,
+        rewardXp: finalXp,
+      },
+    ]);
+  };
+
+  const handleWatchAdDoubleDaily = (reward: { coins: number; xp: number }) => {
+    setPendingDailyBonusAd(reward);
+    prepareAndShowInterstitialAd();
+  };
+
+  // Legacy shortcut for quests modal
+  const handleClaimDailyLogin = () => {
+    handleClaimDailyBonus({ coins: 35, xp: 25 }, false);
+  };
+
+  // Lucky Spin Reward Claim Handler
+  const handleLuckySpinReward = (reward: { coins: number; xp: number; label: string; icon: string }) => {
+    setPlayerState((prev) => {
+      let nextCoins = prev.coins + reward.coins;
+      let nextXp = prev.xp + reward.xp;
+      let nextLevel = prev.level;
+      let targetXp = getXpForNextLevel(nextLevel);
+
+      while (nextXp >= targetXp) {
+        nextXp -= targetXp;
+        nextLevel += 1;
+        targetXp = getXpForNextLevel(nextLevel);
+        notifyLevelUpReward(nextLevel, 100);
+      }
+
+      const updated: PlayerState = {
+        ...prev,
+        coins: nextCoins,
+        xp: nextXp,
+        level: nextLevel,
+      };
+
+      savePlayerState(updated);
+      if (userId) savePlayerStateToCloud(userId, updated);
+      return updated;
+    });
+
+    setToastQueue((prev) => [
+      ...prev,
+      {
+        id: `spin_${Date.now()}`,
+        type: 'quest',
+        title: '¡PREMIO RULETA CÓSMICA!',
+        description: `Has ganado ${reward.label}`,
+        icon: reward.icon || '🎡',
+        rewardCoins: reward.coins,
+        rewardXp: reward.xp,
+      },
+    ]);
+  };
+
+  const handleSpendCoins = (amount: number) => {
+    if (playerState.coins < amount) return false;
+    const nextCoins = playerState.coins - amount;
+    const updated: PlayerState = { ...playerState, coins: nextCoins };
+    setPlayerState(updated);
+    savePlayerState(updated);
+    if (userId) savePlayerStateToCloud(userId, updated);
+    return true;
   };
 
   // Shop Item Purchase / Equip
@@ -518,9 +1138,10 @@ export default function App() {
 
   // Update Player Profile Name
   const handleUpdateName = (newName: string) => {
+    const avatarEmoji = getAvatarById(playerState.avatar).emoji;
     setPlayerState((prev) => ({ ...prev, name: newName }));
     setLeaderboard((prevLb) => {
-      const updated = prevLb.map((l) => (l.isUser ? { ...l, name: newName } : l));
+      const updated = prevLb.map((l) => (l.isUser ? { ...l, name: newName, avatar: avatarEmoji } : l));
       saveLeaderboard(updated);
       return updated;
     });
@@ -531,13 +1152,59 @@ export default function App() {
         name: newName,
         score: playerState.stats.highestScore,
         level: playerState.level,
-        avatar: '⭐',
-        flag: '🇪🇸',
+        avatar: avatarEmoji,
+        flag: '🇲🇽',
         date: 'Hoy',
         isUser: true,
       };
       saveScoreToCloudLeaderboard(userId, userEntry);
     }
+  };
+
+  const handleSelectAvatar = (avatarId: string) => {
+    const avatarItem = getAvatarById(avatarId);
+    setPlayerState((prev) => {
+      const updated = { ...prev, avatar: avatarId };
+      savePlayerState(updated);
+      if (userId) savePlayerStateToCloud(userId, updated);
+      return updated;
+    });
+
+    setLeaderboard((prevLb) => {
+      const updated = prevLb.map((l) => (l.isUser ? { ...l, avatar: avatarItem.emoji } : l));
+      saveLeaderboard(updated);
+      return updated;
+    });
+
+    if (userId) {
+      const userEntry: LeaderboardEntry = {
+        id: userId,
+        name: playerState.name,
+        score: playerState.stats.highestScore,
+        level: playerState.level,
+        avatar: avatarItem.emoji,
+        flag: '🇲🇽',
+        date: 'Hoy',
+        isUser: true,
+      };
+      saveScoreToCloudLeaderboard(userId, userEntry);
+    }
+  };
+
+  // Onboarding Tutorial Handlers
+  const handleCompleteTutorial = () => {
+    setIsTutorialActive(false);
+    setPlayerState((prev) => {
+      const updated = { ...prev, hasSeenTutorial: true };
+      savePlayerState(updated);
+      if (userId) savePlayerStateToCloud(userId, updated);
+      return updated;
+    });
+  };
+
+  const handleReplayTutorial = () => {
+    setActiveModal(null);
+    setIsTutorialActive(true);
   };
 
   // Sync Sound and Haptic Managers with playerState
@@ -565,6 +1232,17 @@ export default function App() {
       return updated;
     });
     hapticManager.setEnabled(enabled);
+  };
+
+  // Update Daily Quest Push Reminders Preference
+  const handleToggleQuestReminders = (enabled: boolean) => {
+    setPlayerState((prev) => {
+      const updated = { ...prev, questRemindersEnabled: enabled };
+      savePlayerState(updated);
+      if (userId) savePlayerStateToCloud(userId, updated);
+      return updated;
+    });
+    toggleDailyQuestReminder(enabled);
   };
 
   // Get active Theme background style class
@@ -611,6 +1289,7 @@ export default function App() {
           onOpenLeaderboard={() => setActiveModal('leaderboard')}
           onOpenStats={() => setActiveModal('stats')}
           onOpenProfile={() => setActiveModal('profile')}
+          onOpenMultiplayer={handleOpenMultiplayerLobby}
           onToggleSound={() =>
             setPlayerState((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }))
           }
@@ -618,6 +1297,10 @@ export default function App() {
           onToggleMobileFrame={() => setIsMobileFrame((v) => !v)}
           hasUnclaimedQuests={hasUnclaimedQuests}
           hasUnclaimedAchievements={hasUnclaimedAchievements}
+          hasUnclaimedDailyReward={playerState.lastDailyClaim !== new Date().toISOString().split('T')[0]}
+          onOpenDailyRewards={() => setShowDailyBonusModal(true)}
+          onOpenLuckySpin={() => setShowLuckySpinModal(true)}
+          hasFreeLuckySpin={localStorage.getItem('star_tap_last_spin_date') !== new Date().toISOString().split('T')[0]}
         />
 
         {/* Core Gameboard Component */}
@@ -629,11 +1312,44 @@ export default function App() {
             playerState={playerState}
             duelGhostRival={duelGhostRival}
             onSelectDuelRival={() => setActiveModal('leaderboard')}
+            multiplayerOpponent={activeMultiplayerOpponent}
+            multiplayerArena={activeMultiplayerArena}
+            onOpenMultiplayerLobby={handleOpenMultiplayerLobby}
+            onMultiplayerGameOver={handleMultiplayerGameOver}
             onGameOver={handleGameOver}
             onStartGame={handleStartGame}
+            onLiveProgress={handleLiveProgress}
+            onToggleSound={() =>
+              setPlayerState((prev) => {
+                const nextState = { ...prev, soundEnabled: !prev.soundEnabled };
+                savePlayerState(nextState);
+                return nextState;
+              })
+            }
+            onToggleHaptics={() =>
+              setPlayerState((prev) => {
+                const nextState = { ...prev, hapticsEnabled: !prev.hapticsEnabled };
+                savePlayerState(nextState);
+                return nextState;
+              })
+            }
+            onSpendCoins={handleSpendCoins}
+            onWatchAdForRevive={() => {
+              prepareAndShowInterstitialAd();
+            }}
+            onSendEmote={handlePlayerSendEmote}
           />
         </main>
       </div>
+
+      {/* Real-Time Achievement & Quest Unlock Toast Notification */}
+      {activeAchievementToast && (
+        <AchievementToast
+          item={activeAchievementToast}
+          lang={playerState.language || 'es'}
+          onClose={() => setActiveAchievementToast(null)}
+        />
+      )}
 
       {/* Modals & Popups */}
       {gameOverData && (
@@ -662,6 +1378,29 @@ export default function App() {
           onUpgradePowerup={handleUpgradePowerup}
           onWatchAd={() => {
             prepareAndShowInterstitialAd();
+            setShowShopRewardedAd(true);
+          }}
+          onUpdatePlayerState={(newState) => {
+            setPlayerState(newState);
+            savePlayerState(newState);
+            if (userId) savePlayerStateToCloud(userId, newState);
+          }}
+        />
+      )}
+
+      {showShopRewardedAd && (
+        <AdMobRewardedModal
+          bonusCoins={80}
+          language={playerState.language || 'es'}
+          onClose={() => setShowShopRewardedAd(false)}
+          onRewardEarned={() => {
+            setPlayerState((prev) => {
+              const newState = { ...prev, coins: prev.coins + 80 };
+              savePlayerState(newState);
+              if (userId) savePlayerStateToCloud(userId, newState);
+              return newState;
+            });
+            setShowShopRewardedAd(false);
           }}
         />
       )}
@@ -679,8 +1418,11 @@ export default function App() {
       {activeModal === 'achievements' && (
         <AchievementsModal
           achievements={achievements}
+          playerState={playerState}
+          language={playerState.language}
           onClose={() => setActiveModal(null)}
           onClaimAchievement={handleClaimAchievement}
+          onOpenMultiplayer={handleOpenMultiplayerLobby}
         />
       )}
 
@@ -720,8 +1462,22 @@ export default function App() {
           onUpdateName={handleUpdateName}
           onUpdateLanguage={handleUpdateLanguage}
           onToggleHaptics={handleToggleHaptics}
+          onToggleQuestReminders={handleToggleQuestReminders}
           onOpenAuth={() => setActiveModal('auth')}
           onOpenEuConsent={() => setShowEuConsentModal(true)}
+          onOpenAvatarSelector={() => setActiveModal('avatar')}
+          onReplayTutorial={handleReplayTutorial}
+        />
+      )}
+
+      {activeModal === 'avatar' && (
+        <AvatarSelectorModal
+          playerState={playerState}
+          onClose={() => setActiveModal('profile')}
+          onSelectAvatar={(avatarId) => {
+            handleSelectAvatar(avatarId);
+            setActiveModal('profile');
+          }}
         />
       )}
 
@@ -744,23 +1500,124 @@ export default function App() {
           lang={playerState.language || 'es'}
           onClose={() => {
             setShowEuConsentModal(false);
-            setShowAppOpenAd(true);
           }}
         />
       )}
 
-      {showAppOpenAd && !showEuConsentModal && (
-        <AppOpenAdModal
-          adUnitId="ca-app-pub-4623925469377930/2039134652"
-          onClose={() => setShowAppOpenAd(false)}
-          onRewardCoins={(coins) => {
-            setPlayerState((prev) => {
-              const newState = { ...prev, coins: prev.coins + coins };
-              savePlayerState(newState);
-              if (userId) savePlayerStateToCloud(userId, newState);
-              return newState;
-            });
+      {isTutorialActive && !isPlaying && !showEuConsentModal && (
+        <TutorialOverlay
+          playerState={playerState}
+          onComplete={handleCompleteTutorial}
+          onStartGame={handleStartGame}
+        />
+      )}
+
+      {/* Daily Login Bonus 7-Day Calendar Modal */}
+      {showDailyBonusModal && !showSplashScreen && (
+        <DailyLoginBonusModal
+          playerState={playerState}
+          language={playerState.language}
+          onClaimReward={(reward) => {
+            handleClaimDailyBonus(reward, false);
+            setShowDailyBonusModal(false);
           }}
+          onWatchAdDouble={(reward) => {
+            handleWatchAdDoubleDaily(reward);
+          }}
+          onClose={() => setShowDailyBonusModal(false)}
+        />
+      )}
+
+      {/* Cosmic Lucky Spin Wheel Modal */}
+      {showLuckySpinModal && !showSplashScreen && (
+        <LuckySpinModal
+          playerState={playerState}
+          language={playerState.language}
+          onSpinRewardEarned={handleLuckySpinReward}
+          onWatchAdForSpin={() => {
+            prepareAndShowInterstitialAd();
+            setPendingSpinAd(true);
+          }}
+          onClose={() => setShowLuckySpinModal(false)}
+        />
+      )}
+
+      {/* AdMob Rewarded Ad for Lucky Spin */}
+      {pendingSpinAd && (
+        <AdMobRewardedModal
+          bonusCoins={200}
+          language={playerState.language || 'es'}
+          onClose={() => setPendingSpinAd(false)}
+          onRewardEarned={() => {
+            setPendingSpinAd(false);
+            // Allow another spin by clearing today's timestamp
+            localStorage.removeItem('star_tap_last_spin_date');
+          }}
+        />
+      )}
+
+      {/* AdMob Rewarded Ad for Doubling Daily Login Bonus (x2) */}
+      {pendingDailyBonusAd && (
+        <AdMobRewardedModal
+          bonusCoins={pendingDailyBonusAd.coins * 2}
+          language={playerState.language || 'es'}
+          onClose={() => setPendingDailyBonusAd(null)}
+          onRewardEarned={() => {
+            handleClaimDailyBonus(pendingDailyBonusAd, true);
+            setPendingDailyBonusAd(null);
+            setShowDailyBonusModal(false);
+          }}
+        />
+      )}
+
+      {/* 1v1 Real-Time Multiplayer Lobby Modal */}
+      {showMultiplayerLobby && !showSplashScreen && (
+        <MultiplayerLobbyModal
+          playerState={playerState}
+          language={playerState.language}
+          onClose={() => setShowMultiplayerLobby(false)}
+          onMatchFound={handleMatchFound}
+        />
+      )}
+
+      {/* Cinematic Versus 3-2-1 Showdown Screen */}
+      {showVersusShowdown && activeMultiplayerArena && activeMultiplayerOpponent && (
+        <MultiplayerVersusShowdown
+          playerState={playerState}
+          opponent={activeMultiplayerOpponent}
+          arena={activeMultiplayerArena}
+          onIntroComplete={handleShowdownIntroComplete}
+          language={playerState.language}
+        />
+      )}
+
+      {/* Multiplayer Match Post-Game Results Screen */}
+      {multiplayerResultData && (
+        <MultiplayerResultModal
+          isWinner={multiplayerResultData.isWinner}
+          playerScore={multiplayerResultData.playerScore}
+          opponentScore={multiplayerResultData.opponentScore}
+          playerState={playerState}
+          opponent={multiplayerResultData.opponent}
+          arena={multiplayerResultData.arena}
+          trophiesDelta={multiplayerResultData.trophiesDelta}
+          coinsDelta={multiplayerResultData.coinsDelta}
+          matchStats={multiplayerResultData.matchStats}
+          onRematch={handleMultiplayerRematch}
+          onBackToLobby={handleMultiplayerBackToLobby}
+          onGoHome={() => {
+            setMultiplayerResultData(null);
+            setActiveMultiplayerOpponent(null);
+          }}
+          language={playerState.language}
+        />
+      )}
+
+      {/* Cinematic Splash & Loading Screen */}
+      {showSplashScreen && (
+        <SplashScreen
+          onFinish={handleFinishSplash}
+          language={playerState.language}
         />
       )}
     </div>

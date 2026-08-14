@@ -73,20 +73,34 @@ export const ArcadeCanvas: React.FC<ArcadeCanvasProps> = ({
         const shape = p.shape || 'circle';
 
         if (shape === 'ring') {
-          ctx.lineWidth = Math.max(1.5, Math.min(6, (1 - p.life / p.maxLife) * 5));
+          ctx.lineWidth = Math.max(1.5, Math.min(7, (1 - p.life / p.maxLife) * 6));
           ctx.strokeStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 10;
           ctx.beginPath();
           ctx.arc(p.x, p.y, Math.max(1, p.size), 0, Math.PI * 2);
           ctx.stroke();
         } else if (shape === 'spark') {
           const speed = Math.hypot(p.vx, p.vy);
-          const len = Math.max(p.size * 1.5, speed * 2.5);
+          const len = Math.max(p.size * 2, speed * 3.8);
           const angle = Math.atan2(p.vy, p.vx);
-          ctx.lineWidth = Math.max(1, p.size * 0.7);
-          ctx.strokeStyle = p.color;
+          
+          const startX = p.x;
+          const startY = p.y;
+          const endX = p.x - Math.cos(angle) * len;
+          const endY = p.y - Math.sin(angle) * len;
+
+          const grad = ctx.createLinearGradient(startX, startY, endX, endY);
+          grad.addColorStop(0, p.color);
+          grad.addColorStop(1, 'transparent');
+
+          ctx.lineWidth = Math.max(1.5, p.size * 0.85);
+          ctx.strokeStyle = grad;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 0;
           ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(p.x - Math.cos(angle) * len, p.y - Math.sin(angle) * len);
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(endX, endY);
           ctx.stroke();
         } else if (shape === 'star') {
           const points = 4;
@@ -95,6 +109,7 @@ export const ArcadeCanvas: React.FC<ArcadeCanvasProps> = ({
           const rot = p.rotation || 0;
 
           ctx.fillStyle = p.color;
+          ctx.shadowBlur = 0;
           ctx.beginPath();
           for (let pt = 0; pt < points * 2; pt++) {
             const r = pt % 2 === 0 ? outerRadius : innerRadius;
@@ -108,12 +123,13 @@ export const ArcadeCanvas: React.FC<ArcadeCanvasProps> = ({
           ctx.fill();
         } else if (shape === 'smoke') {
           ctx.fillStyle = p.color;
+          ctx.shadowBlur = 0;
           ctx.beginPath();
           ctx.arc(p.x, p.y, Math.max(1, p.size), 0, Math.PI * 2);
           ctx.fill();
         } else {
-          // Standard circle
           ctx.fillStyle = p.color;
+          ctx.shadowBlur = 0;
           ctx.beginPath();
           ctx.arc(p.x, p.y, Math.max(1, p.size), 0, Math.PI * 2);
           ctx.fill();

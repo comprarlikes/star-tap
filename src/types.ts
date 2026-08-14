@@ -88,6 +88,7 @@ export interface Achievement {
   target: number;
   unlocked: boolean;
   claimed: boolean;
+  category?: 'all' | 'arcade' | 'social' | 'collection';
 }
 
 export interface Quest {
@@ -153,24 +154,82 @@ export interface PlayerStats {
   totalCoinsEarned: number;
   totalXpEarned: number;
   scoreHistory?: number[];
+  multiplayerWins?: number;
+  multiplayerLosses?: number;
+  multiplayerStreak?: number;
+  highestStreak?: number;
+  arenasPlayed?: string[];
+  emotesSent?: number;
+  multiplayerMatchesPlayed?: number;
+  friendlyDuelsPlayed?: number;
 }
+
+export interface MultiplayerArena {
+  id: string;
+  name: string;
+  nameEn: string;
+  description: string;
+  descriptionEn: string;
+  entryFee: number;
+  prizeCoins: number;
+  trophiesReward: number;
+  trophiesLoss: number;
+  minTrophies: number;
+  icon: string;
+  bgGradient: string;
+  borderColor: string;
+  badge: string;
+}
+
+export interface MultiplayerOpponent {
+  id: string;
+  name: string;
+  avatar: string;
+  flag: string;
+  level: number;
+  trophies: number;
+  winStreak: number;
+  country: string;
+  pingMs: number;
+  targetScore: number;
+  personality: 'aggressive' | 'steady' | 'clutch' | 'speedy';
+  skillMultiplier: number;
+}
+
+export interface LiveEmote {
+  id: string;
+  emoji: string;
+  sender: 'player' | 'opponent';
+  timestamp: number;
+}
+
+export type MysteryBoxRarity = 'common' | 'rare' | 'epic' | 'legendary';
 
 export interface PlayerState {
   name: string;
+  avatar?: string;
   coins: number;
   xp: number;
   level: number;
+  trophies?: number;
+  multiplayerWins?: number;
+  multiplayerLosses?: number;
+  multiplayerStreak?: number;
+  highestTrophies?: number;
   language?: 'es' | 'en';
   equippedSkin: string;
   equippedTheme: string;
   equippedCharacter: string;
   upgrades: Record<string, number>;
+  activeBoosters?: Record<string, number>;
   unlockedSkins: string[];
   unlockedThemes: string[];
   unlockedCharacters: string[];
   soundEnabled: boolean;
   hapticsEnabled: boolean;
+  questRemindersEnabled?: boolean;
   lastDailyClaim: string; // ISO date string YYYY-MM-DD
   dailyStreak: number;
+  hasSeenTutorial?: boolean;
   stats: PlayerStats;
 }

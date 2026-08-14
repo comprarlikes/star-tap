@@ -3,7 +3,8 @@ import { User as FirebaseUser } from 'firebase/auth';
 import { PlayerState } from '../types';
 import { soundManager } from '../services/sound';
 import { hapticManager } from '../services/haptics';
-import { User, X, Check, Award, Sparkles, Shield, Star, Coins, Cloud, Globe, Settings, Vibrate, Smartphone, ShieldCheck, UserPlus, LogIn } from 'lucide-react';
+import { getAvatarById } from '../data/avatars';
+import { User, X, Check, Award, Sparkles, Shield, Star, Coins, Cloud, Globe, Settings, Vibrate, Smartphone, ShieldCheck, UserPlus, LogIn, UserCheck, Compass, Bell, BellRing } from 'lucide-react';
 import { t, Language } from '../i18n';
 
 interface ProfileModalProps {
@@ -13,8 +14,11 @@ interface ProfileModalProps {
   onUpdateName: (newName: string) => void;
   onUpdateLanguage: (lang: Language) => void;
   onToggleHaptics: (enabled: boolean) => void;
+  onToggleQuestReminders?: (enabled: boolean) => void;
   onOpenAuth?: () => void;
   onOpenEuConsent?: () => void;
+  onOpenAvatarSelector?: () => void;
+  onReplayTutorial?: () => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -24,14 +28,19 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onUpdateName,
   onUpdateLanguage,
   onToggleHaptics,
+  onToggleQuestReminders,
   onOpenAuth,
   onOpenEuConsent,
+  onOpenAvatarSelector,
+  onReplayTutorial,
 }) => {
   const [nameInput, setNameInput] = useState(playerState.name);
   const [isSaved, setIsSaved] = useState(false);
   const lang = playerState.language || 'es';
   const hapticsEnabled = playerState.hapticsEnabled ?? true;
+  const questRemindersEnabled = playerState.questRemindersEnabled ?? true;
   const isRegistered = currentUser && !currentUser.isAnonymous;
+  const currentAvatar = getAvatarById(playerState.avatar);
 
   const getTitleByLevel = (lvl: number) => {
     if (lvl >= 15) return t('levelTitleCosmicLegend', lang);
@@ -83,21 +92,49 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         {/* Content Body */}
         <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto text-left">
           {/* Main Hero Profile Card */}
-          <div className="bg-gradient-to-r from-amber-950/40 via-slate-950 to-slate-950 border border-amber-500/30 p-4 rounded-2xl flex items-center gap-4 relative overflow-hidden shadow-md">
-            <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-orange-500 text-slate-950 font-black text-2xl shadow-xl border border-yellow-200/50">
-              L{playerState.level}
-              <Sparkles className="absolute -top-1 -right-1 w-5 h-5 text-yellow-200 animate-pulse" />
+          <div className="bg-gradient-to-r from-amber-950/40 via-slate-950 to-slate-950 border border-amber-500/30 p-4 rounded-2xl flex items-center justify-between gap-3 relative overflow-hidden shadow-md">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div
+                onClick={() => {
+                  if (onOpenAvatarSelector) {
+                    soundManager.playButtonClick();
+                    onOpenAvatarSelector();
+                  }
+                }}
+                className={`relative flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr ${currentAvatar.gradient} text-3xl shadow-xl border-2 ${currentAvatar.borderColor} flex-shrink-0 cursor-pointer hover:scale-105 transition-transform group`}
+                title={t('changeAvatarBtn', lang)}
+              >
+                <span>{currentAvatar.emoji}</span>
+                <span className="absolute -bottom-1 -right-1 bg-slate-950 text-amber-300 font-black text-[10px] px-1.5 py-0.2 rounded-full border border-amber-400 shadow">
+                  L{playerState.level}
+                </span>
+                <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-yellow-200 animate-pulse" />
+              </div>
+
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-lg font-black text-white tracking-wide truncate">{playerState.name}</span>
+                <span className="text-xs font-extrabold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 w-fit mt-0.5">
+                  {currentAvatar.name[lang]} • {getTitleByLevel(playerState.level)}
+                </span>
+                <span className="text-[11px] text-slate-400 mt-1 font-medium">
+                  {t('dailyStreak', lang)}: 🔥 {playerState.dailyStreak} {t('days', lang)}
+                </span>
+              </div>
             </div>
 
-            <div className="flex flex-col flex-1">
-              <span className="text-lg font-black text-white tracking-wide">{playerState.name}</span>
-              <span className="text-xs font-extrabold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 w-fit mt-0.5">
-                {getTitleByLevel(playerState.level)}
-              </span>
-              <span className="text-[11px] text-slate-400 mt-1 font-medium">
-                {t('dailyStreak', lang)}: 🔥 {playerState.dailyStreak} {t('days', lang)}
-              </span>
-            </div>
+            {onOpenAvatarSelector && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playButtonClick();
+                  onOpenAvatarSelector();
+                }}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 rounded-xl font-black text-xs transition-all active:scale-95 flex flex-col items-center gap-0.5 shrink-0 shadow cursor-pointer"
+              >
+                <UserCheck className="w-4 h-4" />
+                <span className="text-[10px] uppercase font-mono">{t('changeAvatarBtn', lang)}</span>
+              </button>
+            )}
           </div>
 
           {/* Account Registration / Login Card */}
@@ -258,6 +295,68 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </div>
             </div>
 
+            {/* Daily Quests Push Reminders Sub-Tile */}
+            <div className="space-y-2 pt-2 border-t border-slate-800/60">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BellRing className="w-3.5 h-3.5 text-amber-400" />
+                  <label className="text-xs font-extrabold text-slate-300 uppercase tracking-wider">
+                    {t('questRemindersLabel', lang)}
+                  </label>
+                </div>
+
+                <span
+                  className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                    questRemindersEnabled
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                      : 'bg-slate-800 text-slate-500 border-slate-700'
+                  }`}
+                >
+                  {questRemindersEnabled ? t('questRemindersOn', lang) : t('questRemindersOff', lang)}
+                </span>
+              </div>
+
+              <p className="text-[11px] text-slate-400 font-medium">
+                {t('questRemindersDesc', lang)}
+              </p>
+
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playButtonClick();
+                    onToggleQuestReminders?.(true);
+                    if (hapticsEnabled) hapticManager.lightTap();
+                  }}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 border transition-all ${
+                    questRemindersEnabled
+                      ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 border-yellow-200/60 shadow-lg scale-102'
+                      : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  <span>{t('questRemindersOn', lang)}</span>
+                  {questRemindersEnabled && <Check className="w-3.5 h-3.5 text-slate-950 stroke-[3]" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playButtonClick();
+                    onToggleQuestReminders?.(false);
+                  }}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 border transition-all ${
+                    !questRemindersEnabled
+                      ? 'bg-gradient-to-r from-slate-700 to-slate-800 text-slate-200 border-slate-600 shadow-md scale-102'
+                      : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <span>{t('questRemindersOff', lang)}</span>
+                  {!questRemindersEnabled && <Check className="w-3.5 h-3.5 text-slate-300 stroke-[3]" />}
+                </button>
+              </div>
+            </div>
+
             {/* EU Privacy Regulations Button */}
             {onOpenEuConsent && (
               <div className="pt-2 border-t border-slate-800/60">
@@ -275,6 +374,29 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   </div>
                   <span className="text-[10px] bg-blue-500/20 px-2 py-0.5 rounded-full border border-blue-500/30 font-bold">
                     {lang === 'es' ? 'Configurar' : 'Manage'}
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Replay Tutorial Button */}
+            {onReplayTutorial && (
+              <div className="pt-2 border-t border-slate-800/60">
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playButtonClick();
+                    onClose();
+                    onReplayTutorial();
+                  }}
+                  className="w-full py-2.5 px-3 bg-amber-950/40 hover:bg-amber-900/40 border border-amber-500/30 rounded-xl text-xs font-black text-amber-300 flex items-center justify-between transition-all active:scale-98 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Compass className="w-4 h-4 text-amber-400" />
+                    <span>{t('tutorialReplayBtn', lang)}</span>
+                  </div>
+                  <span className="text-[10px] bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30 font-bold">
+                    🚀 {lang === 'es' ? 'Iniciar' : 'Start'}
                   </span>
                 </button>
               </div>

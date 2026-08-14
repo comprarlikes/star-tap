@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { StarItem, StarType, Particle, ParticleShape, FloatingText, PlayerState, GameMode, GhostRival } from '../types';
+import { StarItem, StarType, Particle, ParticleShape, FloatingText, PlayerState, GameMode, GhostRival, MultiplayerOpponent, MultiplayerArena, LiveEmote } from '../types';
 import { soundManager } from '../services/sound';
 import { hapticManager } from '../services/haptics';
 import { ArcadeCanvas } from './ArcadeCanvas';
-import { Heart, Shield, Zap, Sparkles, AlertTriangle, Swords, Ghost, Users, Trophy, Gamepad2, X, Check, Clock, Flame, Smile } from 'lucide-react';
+import { GameTipBanner } from './GameTipBanner';
+import { InGamePauseModal } from './InGamePauseModal';
+import { ReviveModal } from './ReviveModal';
+import { MultiplayerBattleHUD } from './MultiplayerBattleHUD';
+import { getRandomOpponentEmote } from '../services/multiplayerBotPool';
+import { Heart, Shield, Zap, Sparkles, AlertTriangle, Swords, Ghost, Users, Trophy, Gamepad2, X, Check, Clock, Flame, Smile, LogOut, Pause } from 'lucide-react';
 import { t } from '../i18n';
 
 interface GameBoardProps {
@@ -13,6 +18,23 @@ interface GameBoardProps {
   playerState: PlayerState;
   duelGhostRival?: GhostRival | null;
   onSelectDuelRival?: () => void;
+  multiplayerOpponent?: MultiplayerOpponent | null;
+  multiplayerArena?: MultiplayerArena | null;
+  onOpenMultiplayerLobby?: () => void;
+  onMultiplayerGameOver?: (
+    isWinner: boolean,
+    playerScore: number,
+    opponentScore: number,
+    finalStats: {
+      starsTapped: number;
+      normal: number;
+      golden: number;
+      diamond: number;
+      bombsHit: number;
+      bombsAvoided: number;
+      maxCombo: number;
+    }
+  ) => void;
   onGameOver: (finalScore: number, finalStats: {
     starsTapped: number;
     normal: number;
@@ -23,6 +45,12 @@ interface GameBoardProps {
     maxCombo: number;
   }) => void;
   onStartGame: () => void;
+  onLiveProgress?: (liveStats: { score: number; combo: number; starsTapped: number; diamond: number; golden: number }) => void;
+  onToggleSound?: () => void;
+  onToggleHaptics?: () => void;
+  onSpendCoins?: (amount: number) => boolean;
+  onWatchAdForRevive?: () => void;
+  onSendEmote?: (emoji: string) => void;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -32,8 +60,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   playerState,
   duelGhostRival,
   onSelectDuelRival,
+  multiplayerOpponent,
+  multiplayerArena,
+  onOpenMultiplayerLobby,
+  onMultiplayerGameOver,
   onGameOver,
   onStartGame,
+  onLiveProgress,
+  onToggleSound,
+  onToggleHaptics,
+  onSpendCoins,
+  onWatchAdForRevive,
+  onSendEmote,
 }) => {
   const [score, setScore] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number>(60);
@@ -47,8 +85,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const [magnetTimeLeft, setMagnetTimeLeft] = useState<number>(0);
   const [magnetCharges, setMagnetCharges] = useState<number>(1);
 
+  // Real-Time Multiplayer Live Opponent State
+  const [opponentLiveScore, setOpponentLiveScore] = useState<number>(0);
+  const [opponentLiveCombo, setOpponentLiveCombo] = useState<number>(0);
+  const [opponentEvent, setOpponentEvent] = useState<string | null>(null);
+  const [activeEmotes, setActiveEmotes] = useState<LiveEmote[]>([]);
+
   // Mode Selector Modal Overlay
   const [isModeSelectorOpen, setIsModeSelectorOpen] = useState(false);
+
+  // Exit Confirmation Dialog Overlay
+  const [isConfirmingExit, setIsConfirmingExit] = useState<boolean>(false);
+
+  // In-Game Pause State
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+
+  // Match Start 3-2-1 Countdown (null when active, 3..2..1..0 when starting)
+  const [matchCountdown, setMatchCountdown] = useState<number | null>(null);
+
+  // Revive / Second Chance State
+  const [showReviveModal, setShowReviveModal] = useState<boolean>(false);
+  const hasUsedReviveRef = useRef<boolean>(false);
 
   // Fever Meter (0 - 100)
   const [feverProgress, setFeverProgress] = useState<number>(0);
@@ -246,7 +303,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     setMultiplierTimeLeft(0);
     setFreezeTimeLeft(0);
     setMagnetTimeLeft(0);
-    setMagnetCharges((playerState.upgrades.star_magnet || 0) + 1);
+    // Magnet charges from upgrades and active boosters
+    const boosterMagnet = (playerState.activeBoosters?.star_magnet_boost || 0) > 0 ? 1 : 0;
+    setMagnetCharges((playerState.upgrades.star_magnet || 0) + 1 + boosterMagnet);
     setFeverProgress(0);
     setIsFeverActive(false);
     setFeverTimeLeft(0);
@@ -259,13 +318,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     // Base Time calculations
     const baseTimeUpgrade = playerState.upgrades.time_extender || 0;
     const cosmicCatExtraTime = playerState.equippedCharacter === 'char_cosmic_cat' ? 3 : 0;
-    const initialTime = gameMode === 'blitz' ? (60 + baseTimeUpgrade + cosmicCatExtraTime) : (gameMode === 'fever' ? 30 : 60);
+    const boosterExtraTime = (playerState.activeBoosters?.time_bonus_boost || 0) > 0 ? 5 : 0;
+    const initialTime = gameMode === 'blitz' ? (60 + baseTimeUpgrade + cosmicCatExtraTime + boosterExtraTime) : (gameMode === 'fever' ? 30 : 60);
     setTimeLeft(initialTime);
 
     setLives(3);
 
-    // Initial Shields from upgrades
-    const initialShields = playerState.upgrades.bomb_shield || 0;
+    // Initial Shields from upgrades and active boosters
+    const initialShields = (playerState.upgrades.bomb_shield || 0) + ((playerState.activeBoosters?.extra_shield || 0) > 0 ? 1 : 0);
     setShieldCount(initialShields);
 
     matchStatsRef.current = {
@@ -277,14 +337,67 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       bombsAvoided: 0,
       maxCombo: 0,
     };
+
+    setOpponentLiveScore(0);
+    setOpponentLiveCombo(0);
+    setOpponentEvent(null);
+    setActiveEmotes([]);
   }, [gameMode, playerState]);
 
-  // Handle Match Start
+  // Handle Match Start with Pro 3-2-1 Countdown
   useEffect(() => {
     if (isPlaying) {
       resetMatch();
+      hasUsedReviveRef.current = false;
+      setIsPaused(false);
+      setShowReviveModal(false);
+      setMatchCountdown(3);
+      soundManager.playCountdownTick();
+
+      const t1 = setTimeout(() => {
+        setMatchCountdown(2);
+        soundManager.playCountdownTick();
+      }, 900);
+
+      const t2 = setTimeout(() => {
+        setMatchCountdown(1);
+        soundManager.playCountdownTick();
+      }, 1800);
+
+      const t3 = setTimeout(() => {
+        setMatchCountdown(0);
+        soundManager.playCountdownGo();
+      }, 2700);
+
+      const t4 = setTimeout(() => {
+        setMatchCountdown(null);
+      }, 3400);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        clearTimeout(t4);
+      };
+    } else {
+      setMatchCountdown(null);
+      setIsPaused(false);
+      setShowReviveModal(false);
     }
   }, [isPlaying, resetMatch]);
+
+  // Report live progress during gameplay for real-time achievement checking
+  useEffect(() => {
+    if (isPlaying) {
+      onLiveProgress?.({
+        score,
+        combo,
+        starsTapped: matchStatsRef.current.starsTapped,
+        diamond: matchStatsRef.current.diamond,
+        golden: matchStatsRef.current.golden,
+      });
+    }
+  }, [score, combo, isPlaying, onLiveProgress]);
 
   // Spawning Stars Logic
   const spawnStar = useCallback(() => {
@@ -367,7 +480,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   // Main Spawn Interval
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!isPlaying || isConfirmingExit || isPaused || matchCountdown !== null || showReviveModal) return;
 
     const spawnIntervalMs = isFeverActive ? 300 : (gameMode === 'fever' ? 350 : 550);
     const interval = setInterval(() => {
@@ -375,11 +488,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }, spawnIntervalMs);
 
     return () => clearInterval(interval);
-  }, [isPlaying, isFeverActive, gameMode, spawnStar]);
+  }, [isPlaying, isConfirmingExit, isPaused, matchCountdown, showReviveModal, isFeverActive, gameMode, spawnStar]);
 
   // Despawning & Timer Cleanup Tick
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!isPlaying || isConfirmingExit || isPaused || matchCountdown !== null || showReviveModal) return;
 
     const timer = setInterval(() => {
       const now = Date.now();
@@ -438,11 +551,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isPlaying, gameMode, isFeverActive]);
+  }, [isPlaying, isConfirmingExit, gameMode, isFeverActive]);
 
   // Magnet Pull Loop: Attracts active non-bomb stars toward center (50%, 50%)
   useEffect(() => {
-    if (!isPlaying || magnetTimeLeft <= 0) return;
+    if (!isPlaying || isConfirmingExit || isPaused || matchCountdown !== null || showReviveModal || magnetTimeLeft <= 0) return;
 
     const magnetInterval = setInterval(() => {
       setStars((prevStars) => {
@@ -500,9 +613,75 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     return () => clearInterval(magnetInterval);
   }, [isPlaying, magnetTimeLeft, addStarBurstParticles, addFloatingText]);
 
+  // Multiplayer Opponent Real-time Simulation
+  useEffect(() => {
+    if (!isPlaying || isConfirmingExit || isPaused || matchCountdown !== null || showReviveModal || !multiplayerOpponent) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      // Calculate realistic score tick based on personality and skill
+      const baseTick = (multiplayerOpponent.targetScore / 60) * (0.75 + Math.random() * 0.5) * multiplayerOpponent.skillMultiplier;
+      const pts = Math.max(1, Math.round(baseTick));
+
+      setOpponentLiveScore((prev) => prev + pts);
+      setOpponentLiveCombo((prev) => (Math.random() > 0.1 ? prev + 1 : 0));
+
+      // Occasional match events (12% chance per tick)
+      if (Math.random() < 0.12) {
+        const events = [
+          `⚡ ¡${multiplayerOpponent.name} logró Combo x10!`,
+          `💥 ¡${multiplayerOpponent.name} pisó una bomba! (-10)`,
+          `🔥 ¡${multiplayerOpponent.name} desató MODO FIEBRE!`,
+          `🧲 ¡${multiplayerOpponent.name} activó Imán Estelar!`,
+        ];
+        const evt = events[Math.floor(Math.random() * events.length)];
+        setOpponentEvent(evt);
+        soundManager.playRivalAlert();
+        setTimeout(() => setOpponentEvent(null), 2500);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, isConfirmingExit, isPaused, matchCountdown, showReviveModal, multiplayerOpponent]);
+
+  // Handle Player Sending Live Emote
+  const handleSendEmote = (emoji: string) => {
+    onSendEmote?.(emoji);
+    const playerEmote: LiveEmote = {
+      id: `p_${Date.now()}`,
+      emoji,
+      sender: 'player',
+      timestamp: Date.now(),
+    };
+    setActiveEmotes((prev) => [...prev, playerEmote]);
+
+    // Clear emote after 2.5s
+    setTimeout(() => {
+      setActiveEmotes((prev) => prev.filter((e) => e.id !== playerEmote.id));
+    }, 2500);
+
+    // Opponent counter-reaction
+    if (multiplayerOpponent && Math.random() < 0.75) {
+      setTimeout(() => {
+        const oppEmote: LiveEmote = {
+          id: `opp_${Date.now()}`,
+          emoji: getRandomOpponentEmote(),
+          sender: 'opponent',
+          timestamp: Date.now(),
+        };
+        setActiveEmotes((prev) => [...prev, oppEmote]);
+        soundManager.playEmotePop();
+        setTimeout(() => {
+          setActiveEmotes((prev) => prev.filter((e) => e.id !== oppEmote.id));
+        }, 2500);
+      }, 1400);
+    }
+  };
+
   // Game Clock Countdown
   useEffect(() => {
-    if (!isPlaying || gameMode === 'zen') return;
+    if (!isPlaying || isConfirmingExit || isPaused || matchCountdown !== null || showReviveModal || gameMode === 'zen') return;
 
     const clockInterval = setInterval(() => {
       setTimeLeft((prevTime) => {
@@ -515,19 +694,70 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }, 1000);
 
     return () => clearInterval(clockInterval);
-  }, [isPlaying, gameMode]);
+  }, [isPlaying, isConfirmingExit, isPaused, matchCountdown, showReviveModal, gameMode]);
 
-  // Check Game Over Conditions
+  // Check Game Over Conditions or Trigger Revive Prompt
   useEffect(() => {
-    if (isPlaying && gameMode !== 'zen' && (timeLeft <= 0 || (gameMode === 'endless' && lives <= 0))) {
-      onGameOver(score, { ...matchStatsRef.current });
+    if (isPlaying && !isConfirmingExit && !isPaused && matchCountdown === null && !showReviveModal && gameMode !== 'zen') {
+      if (timeLeft <= 0 || (gameMode === 'endless' && lives <= 0)) {
+        if (multiplayerOpponent && onMultiplayerGameOver) {
+          const isWinner = score >= opponentLiveScore;
+          onMultiplayerGameOver(isWinner, score, opponentLiveScore, { ...matchStatsRef.current });
+        } else if (!hasUsedReviveRef.current && score >= 30) {
+          setShowReviveModal(true);
+        } else {
+          onGameOver(score, { ...matchStatsRef.current });
+        }
+      }
     }
-  }, [isPlaying, timeLeft, lives, gameMode, score, onGameOver]);
+  }, [isPlaying, isConfirmingExit, isPaused, matchCountdown, showReviveModal, timeLeft, lives, gameMode, score, opponentLiveScore, multiplayerOpponent, onMultiplayerGameOver, onGameOver]);
+
+  const handleReviveWithAd = () => {
+    hasUsedReviveRef.current = true;
+    setShowReviveModal(false);
+    onWatchAdForRevive?.();
+    if (gameMode === 'endless') {
+      setLives(2);
+    } else {
+      setTimeLeft(15);
+    }
+    soundManager.playRevive();
+    hapticManager.success();
+    const rect = boardRef.current?.getBoundingClientRect();
+    const cx = (rect?.width || 350) / 2;
+    const cy = (rect?.height || 500) / 2;
+    addParticles(cx, cy, '#10b981', 24, { shape: 'star', speedMin: 3, speedMax: 9, sizeMin: 8, sizeMax: 16 });
+    addFloatingText('✨ ¡REVIVIDO! (+15s / +2 Vidas) ✨', cx, cy - 40, '#34d399');
+  };
+
+  const handleReviveWithCoins = () => {
+    const success = onSpendCoins ? onSpendCoins(100) : (playerState.coins >= 100);
+    if (!success && playerState.coins < 100) return;
+    hasUsedReviveRef.current = true;
+    setShowReviveModal(false);
+    if (gameMode === 'endless') {
+      setLives(2);
+    } else {
+      setTimeLeft(15);
+    }
+    soundManager.playRevive();
+    hapticManager.success();
+    const rect = boardRef.current?.getBoundingClientRect();
+    const cx = (rect?.width || 350) / 2;
+    const cy = (rect?.height || 500) / 2;
+    addParticles(cx, cy, '#f59e0b', 24, { shape: 'star', speedMin: 3, speedMax: 9, sizeMin: 8, sizeMax: 16 });
+    addFloatingText('✨ ¡REVIVIDO! ✨', cx, cy - 40, '#facc15');
+  };
+
+  const handleSkipRevive = () => {
+    setShowReviveModal(false);
+    onGameOver(score, { ...matchStatsRef.current });
+  };
 
   // Handle Tapping a Star Item
   const handleTapStar = (star: StarItem, e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
-    if (!isPlaying) return;
+    if (!isPlaying || isConfirmingExit || isPaused || matchCountdown !== null || showReviveModal) return;
 
     // Get exact pixel location on board for particles & floating text
     const rect = boardRef.current?.getBoundingClientRect();
@@ -558,6 +788,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     // Trigger haptic feedback for combo milestones
     hapticManager.comboTrigger(currentCombo);
 
+    // Audio & Visual celebratory fanfare for milestone combos
+    if (currentCombo === 5 || currentCombo === 10 || currentCombo === 15 || currentCombo === 20 || currentCombo === 25 || currentCombo === 30 || currentCombo === 40 || currentCombo === 50) {
+      soundManager.playComboMilestone(currentCombo);
+      let comboBanner = `⚡ ¡COMBO x${currentCombo}!`;
+      if (currentCombo === 10) comboBanner = '🔥 ¡COMBO x10 IMPARABLE!';
+      if (currentCombo === 15) comboBanner = '🚀 ¡COMBO x15 EN LLAMAS!';
+      if (currentCombo === 20) comboBanner = '👑 ¡COMBO x20 LEYENDA!';
+      if (currentCombo >= 30) comboBanner = '🌌 ¡COMBO x30 DIOS CÓSMICO!';
+      addFloatingText(comboBanner, clickX, clickY - 45, '#f59e0b');
+    }
+
     // Combo multiplier multiplier: 1 + combo * 0.1 (e.g. combo 10 = x2 points!)
     const comboFactor = Math.min(3.0, 1 + Math.floor(currentCombo / 5) * 0.25);
     const totalMultiplier = activeMultiplier * comboFactor;
@@ -569,7 +810,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         if (nextFever >= 100) {
           setIsFeverActive(true);
           setFeverTimeLeft(6);
-          soundManager.playPowerup();
+          soundManager.playFeverEnter();
           hapticManager.heavyTap();
           addFloatingText('🔥 ¡MODO FIEBRE! 🔥', clickX, clickY - 30, '#f59e0b');
           return 0;
@@ -684,10 +925,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         // Check if shield active or Sparky Bot active
         if (shieldCount > 0) {
           setShieldCount((sc) => sc - 1);
-          soundManager.playPowerup();
+          soundManager.playShieldBreak();
           hapticManager.mediumTap();
           addStarBurstParticles(clickX, clickY, 'shield');
-          addFloatingText('🛡️ Escudo Protegido!', clickX, clickY, '#22d3ee');
+          addFloatingText('🛡️ ¡Escudo Bloqueó Bomba!', clickX, clickY, '#22d3ee');
           break;
         }
 
@@ -724,33 +965,117 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   };
 
-  // Get current Star Skin Icon / Color
+  // Get current Star Skin Icon / Color & Motion Trail Styles
   const getStarStyle = (type: StarType) => {
     switch (type) {
       case 'normal':
-        return { icon: '⭐', bg: 'from-amber-400 to-yellow-300', ring: 'ring-amber-300/60' };
+        return {
+          icon: '⭐',
+          bg: 'from-amber-400 to-yellow-300',
+          ring: 'ring-amber-300/60',
+          trailFrom: 'rgba(251, 191, 36, 0.65)',
+          glowColor: 'rgba(250, 204, 21, 0.5)',
+          shadowColor: 'rgba(245, 158, 11, 0.4)',
+        };
       case 'golden':
-        return { icon: '🌟', bg: 'from-yellow-300 via-amber-400 to-orange-500', ring: 'ring-yellow-200 animate-pulse' };
+        return {
+          icon: '🌟',
+          bg: 'from-yellow-300 via-amber-400 to-orange-500',
+          ring: 'ring-yellow-200 animate-pulse',
+          trailFrom: 'rgba(245, 158, 11, 0.85)',
+          glowColor: 'rgba(253, 224, 71, 0.7)',
+          shadowColor: 'rgba(217, 119, 6, 0.6)',
+        };
       case 'diamond':
-        return { icon: '💎', bg: 'from-cyan-400 via-blue-500 to-indigo-600', ring: 'ring-cyan-300 animate-bounce' };
+        return {
+          icon: '💎',
+          bg: 'from-cyan-400 via-blue-500 to-indigo-600',
+          ring: 'ring-cyan-300 animate-bounce',
+          trailFrom: 'rgba(56, 189, 248, 0.85)',
+          glowColor: 'rgba(96, 165, 250, 0.7)',
+          shadowColor: 'rgba(37, 99, 235, 0.6)',
+        };
       case 'bomb':
-        return { icon: '❌', bg: 'from-red-600 via-rose-700 to-black', ring: 'ring-red-500 animate-pulse' };
+        return {
+          icon: '❌',
+          bg: 'from-red-600 via-rose-700 to-black',
+          ring: 'ring-red-500 animate-pulse',
+          trailFrom: 'rgba(225, 29, 72, 0.8)',
+          glowColor: 'rgba(239, 68, 68, 0.6)',
+          shadowColor: 'rgba(159, 18, 57, 0.6)',
+        };
       case 'multiplier2':
-        return { icon: '✨', bg: 'from-purple-500 to-pink-500', ring: 'ring-purple-300' };
+        return {
+          icon: '✨',
+          bg: 'from-purple-500 to-pink-500',
+          ring: 'ring-purple-300',
+          trailFrom: 'rgba(192, 132, 252, 0.8)',
+          glowColor: 'rgba(232, 121, 249, 0.6)',
+          shadowColor: 'rgba(168, 85, 247, 0.5)',
+        };
       case 'multiplier5':
-        return { icon: '🚀', bg: 'from-fuchsia-600 to-pink-600', ring: 'ring-fuchsia-300' };
+        return {
+          icon: '🚀',
+          bg: 'from-fuchsia-600 to-pink-600',
+          ring: 'ring-fuchsia-300',
+          trailFrom: 'rgba(232, 121, 249, 0.85)',
+          glowColor: 'rgba(244, 114, 182, 0.7)',
+          shadowColor: 'rgba(217, 70, 239, 0.6)',
+        };
       case 'timeBonus':
-        return { icon: '⏱️', bg: 'from-emerald-500 to-teal-400', ring: 'ring-emerald-300' };
+        return {
+          icon: '⏱️',
+          bg: 'from-emerald-500 to-teal-400',
+          ring: 'ring-emerald-300',
+          trailFrom: 'rgba(52, 211, 153, 0.8)',
+          glowColor: 'rgba(16, 185, 129, 0.6)',
+          shadowColor: 'rgba(5, 150, 105, 0.5)',
+        };
       case 'shield':
-        return { icon: '🛡️', bg: 'from-cyan-500 to-sky-400', ring: 'ring-cyan-300' };
+        return {
+          icon: '🛡️',
+          bg: 'from-cyan-500 to-sky-400',
+          ring: 'ring-cyan-300',
+          trailFrom: 'rgba(34, 211, 238, 0.8)',
+          glowColor: 'rgba(56, 189, 248, 0.6)',
+          shadowColor: 'rgba(14, 165, 233, 0.5)',
+        };
       case 'freeze':
-        return { icon: '❄️', bg: 'from-sky-400 to-blue-600', ring: 'ring-sky-200' };
+        return {
+          icon: '❄️',
+          bg: 'from-sky-400 to-blue-600',
+          ring: 'ring-sky-200',
+          trailFrom: 'rgba(125, 211, 252, 0.8)',
+          glowColor: 'rgba(186, 230, 253, 0.7)',
+          shadowColor: 'rgba(2, 132, 199, 0.5)',
+        };
       case 'magnet':
-        return { icon: '🧲', bg: 'from-purple-600 via-fuchsia-500 to-indigo-600', ring: 'ring-fuchsia-300 animate-pulse' };
+        return {
+          icon: '🧲',
+          bg: 'from-purple-600 via-fuchsia-500 to-indigo-600',
+          ring: 'ring-fuchsia-300 animate-pulse',
+          trailFrom: 'rgba(168, 85, 247, 0.85)',
+          glowColor: 'rgba(217, 70, 239, 0.6)',
+          shadowColor: 'rgba(147, 51, 234, 0.5)',
+        };
       case 'rainbow':
-        return { icon: '🌈', bg: 'from-pink-500 via-yellow-400 to-cyan-400', ring: 'ring-white animate-spin' };
+        return {
+          icon: '🌈',
+          bg: 'from-pink-500 via-yellow-400 to-cyan-400',
+          ring: 'ring-white animate-spin',
+          trailFrom: 'rgba(244, 114, 182, 0.9)',
+          glowColor: 'rgba(250, 204, 21, 0.8)',
+          shadowColor: 'rgba(236, 72, 153, 0.7)',
+        };
       default:
-        return { icon: '⭐', bg: 'from-amber-400 to-yellow-300', ring: 'ring-amber-300' };
+        return {
+          icon: '⭐',
+          bg: 'from-amber-400 to-yellow-300',
+          ring: 'ring-amber-300',
+          trailFrom: 'rgba(251, 191, 36, 0.6)',
+          glowColor: 'rgba(250, 204, 21, 0.5)',
+          shadowColor: 'rgba(245, 158, 11, 0.4)',
+        };
     }
   };
 
@@ -768,95 +1093,133 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       {/* Top Game HUD Bar - ONLY visible during active gameplay */}
       {isPlaying && (
         <>
-          <div className="relative z-20 w-full p-3 flex items-center justify-between bg-slate-900/90 backdrop-blur-xl border-b border-slate-800/80 text-white shadow-xl animate-fade-in">
-            {/* Score & Multiplier */}
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col bg-slate-950/80 px-3 py-1.5 rounded-2xl border border-amber-500/30 shadow-inner">
-                <span className="text-[10px] font-extrabold text-amber-400 tracking-wider uppercase">PUNTOS</span>
-                <div className="text-2xl font-black text-white tracking-tight drop-shadow-md">
-                  {score.toLocaleString()}
+          {multiplayerOpponent ? (
+            <MultiplayerBattleHUD
+              playerScore={score}
+              playerCombo={combo}
+              playerState={playerState}
+              opponent={multiplayerOpponent}
+              opponentScore={opponentLiveScore}
+              opponentCombo={opponentLiveCombo}
+              opponentEvent={opponentEvent}
+              activeEmotes={activeEmotes}
+              onSendEmote={handleSendEmote}
+              language={playerState.language || 'es'}
+            />
+          ) : (
+            <div className="relative z-20 w-full p-3 flex items-center justify-between bg-slate-900/90 backdrop-blur-xl border-b border-slate-800/80 text-white shadow-xl animate-fade-in">
+              {/* Score & Multiplier */}
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col bg-slate-950/80 px-3 py-1.5 rounded-2xl border border-amber-500/30 shadow-inner">
+                  <span className="text-[10px] font-extrabold text-amber-400 tracking-wider uppercase">PUNTOS</span>
+                  <div className="text-2xl font-black text-white tracking-tight drop-shadow-md">
+                    {score.toLocaleString()}
+                  </div>
                 </div>
+
+                {activeMultiplier > 1 && (
+                  <div className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 px-3 py-1.5 rounded-2xl text-xs font-black animate-pulse shadow-lg border border-pink-400/40">
+                    <Zap className="w-3.5 h-3.5 fill-white" />
+                    <span>x{activeMultiplier} ({multiplierTimeLeft}s)</span>
+                  </div>
+                )}
               </div>
 
-              {activeMultiplier > 1 && (
-                <div className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 px-3 py-1.5 rounded-2xl text-xs font-black animate-pulse shadow-lg border border-pink-400/40">
-                  <Zap className="w-3.5 h-3.5 fill-white" />
-                  <span>x{activeMultiplier} ({multiplierTimeLeft}s)</span>
-                </div>
-              )}
-            </div>
-
-            {/* Center: Combo Indicator */}
-            {combo >= 3 && (
-              <div className="flex flex-col items-center animate-bounce">
-                <span className="text-xs font-black text-yellow-300 bg-amber-500/20 px-3.5 py-1 rounded-2xl border border-yellow-400/50 shadow-md">
-                  COMBO x{combo}!
-                </span>
-              </div>
-            )}
-
-            {/* Right: Timer / Lives & Active Powerups */}
-            <div className="flex items-center gap-2">
-              {shieldCount > 0 && (
-                <div className="flex items-center gap-1.5 bg-cyan-950/80 border border-cyan-500/40 px-2.5 py-1 rounded-2xl text-cyan-300 text-xs font-bold shadow-inner">
-                  <Shield className="w-3.5 h-3.5 fill-cyan-400" />
-                  <span>x{shieldCount}</span>
+              {/* Center: Combo Indicator */}
+              {combo >= 3 && (
+                <div className="flex flex-col items-center animate-bounce">
+                  <span className="text-xs font-black text-yellow-300 bg-amber-500/20 px-3.5 py-1 rounded-2xl border border-yellow-400/50 shadow-md">
+                    COMBO x{combo}!
+                  </span>
                 </div>
               )}
 
-              {freezeTimeLeft > 0 && (
-                <div className="flex items-center gap-1.5 bg-sky-950/80 border border-sky-500/40 px-2.5 py-1 rounded-2xl text-sky-300 text-xs font-bold animate-pulse shadow-inner">
-                  <span>❄️ {freezeTimeLeft}s</span>
-                </div>
-              )}
+              {/* Right: Timer / Lives & Active Powerups */}
+              <div className="flex items-center gap-2">
+                {shieldCount > 0 && (
+                  <div className="flex items-center gap-1.5 bg-cyan-950/80 border border-cyan-500/40 px-2.5 py-1 rounded-2xl text-cyan-300 text-xs font-bold shadow-inner">
+                    <Shield className="w-3.5 h-3.5 fill-cyan-400" />
+                    <span>x{shieldCount}</span>
+                  </div>
+                )}
 
-              {magnetTimeLeft > 0 && (
-                <div className="flex items-center gap-1.5 bg-purple-950/80 border border-purple-500/40 px-2.5 py-1 rounded-2xl text-purple-300 text-xs font-bold animate-pulse shadow-inner">
-                  <span>🧲 {magnetTimeLeft}s</span>
-                </div>
-              )}
+                {freezeTimeLeft > 0 && (
+                  <div className="flex items-center gap-1.5 bg-sky-950/80 border border-sky-500/40 px-2.5 py-1 rounded-2xl text-sky-300 text-xs font-bold animate-pulse shadow-inner">
+                    <span>❄️ {freezeTimeLeft}s</span>
+                  </div>
+                )}
 
-              {gameMode === 'endless' ? (
-                <div className="flex items-center gap-1.5 bg-slate-950/70 px-3 py-1.5 rounded-2xl border border-slate-800/80 shadow-inner">
-                  {[1, 2, 3].map((heartIndex) => (
-                    <Heart
-                      key={heartIndex}
-                      className={`w-5 h-5 transition-all ${
-                        heartIndex <= lives
-                          ? 'text-red-500 fill-red-500 scale-110 drop-shadow'
-                          : 'text-slate-700 fill-slate-800 opacity-40'
+                {magnetTimeLeft > 0 && (
+                  <div className="flex items-center gap-1.5 bg-purple-950/80 border border-purple-500/40 px-2.5 py-1 rounded-2xl text-purple-300 text-xs font-bold animate-pulse shadow-inner">
+                    <span>🧲 {magnetTimeLeft}s</span>
+                  </div>
+                )}
+
+                {gameMode === 'endless' ? (
+                  <div className="flex items-center gap-1.5 bg-slate-950/70 px-3 py-1.5 rounded-2xl border border-slate-800/80 shadow-inner">
+                    {[1, 2, 3].map((heartIndex) => (
+                      <Heart
+                        key={heartIndex}
+                        className={`w-5 h-5 transition-all ${
+                          heartIndex <= lives
+                            ? 'text-red-500 fill-red-500 scale-110 drop-shadow'
+                            : 'text-slate-700 fill-slate-800 opacity-40'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                ) : gameMode === 'zen' ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex flex-col items-end bg-slate-950/70 px-3 py-1.5 rounded-2xl border border-emerald-500/30 shadow-inner">
+                      <span className="text-[10px] font-extrabold text-emerald-400 tracking-wider uppercase">Modo</span>
+                      <span className="text-xs font-black text-emerald-300">Zen 🧘</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-end bg-slate-950/80 px-3.5 py-1.5 rounded-2xl border border-cyan-500/30 shadow-inner">
+                    <span className="text-[10px] font-extrabold text-cyan-400 tracking-wider uppercase">TIEMPO</span>
+                    <div
+                      className={`text-2xl font-black tracking-tight ${
+                        timeLeft <= 10 ? 'text-red-400 animate-ping' : 'text-cyan-300'
                       }`}
-                    />
-                  ))}
-                </div>
-              ) : gameMode === 'zen' ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex flex-col items-end bg-slate-950/70 px-3 py-1.5 rounded-2xl border border-emerald-500/30 shadow-inner">
-                    <span className="text-[10px] font-extrabold text-emerald-400 tracking-wider uppercase">Modo</span>
-                    <span className="text-xs font-black text-emerald-300">Zen 🧘</span>
+                    >
+                      {timeLeft}s
+                    </div>
                   </div>
-                  <button
-                    onClick={() => onGameOver(score, { ...matchStatsRef.current })}
-                    className="px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-rose-300 hover:text-rose-200 font-bold text-xs rounded-2xl border border-rose-500/40 transition-all active:scale-95 shadow-md flex items-center gap-1"
-                    title="Terminar práctica Zen y guardar puntos"
-                  >
-                    <span>Finalizar</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-end bg-slate-950/80 px-3.5 py-1.5 rounded-2xl border border-cyan-500/30 shadow-inner">
-                  <span className="text-[10px] font-extrabold text-cyan-400 tracking-wider uppercase">TIEMPO</span>
-                  <div
-                    className={`text-2xl font-black tracking-tight ${
-                      timeLeft <= 10 ? 'text-red-400 animate-ping' : 'text-cyan-300'
-                    }`}
-                  >
-                    {timeLeft}s
-                  </div>
-                </div>
-              )}
+                )}
+
+                {/* Quick In-Game Pause Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playButtonClick();
+                    setIsPaused(true);
+                    if (playerState.hapticsEnabled) hapticManager.lightTap();
+                  }}
+                  className="px-2.5 py-2 bg-slate-950/90 hover:bg-slate-800 text-amber-300 rounded-2xl border border-amber-500/40 transition-all active:scale-95 shadow-md flex items-center gap-1.5 text-xs font-extrabold cursor-pointer"
+                  title="Pausar partida"
+                >
+                  <Pause className="w-3.5 h-3.5 fill-amber-300" />
+                  <span className="hidden xs:inline">Pausa</span>
+                </button>
+
+                {/* Exit Match Button (Prompts Confirmation Dialog) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playButtonClick();
+                    setIsConfirmingExit(true);
+                    if (playerState.hapticsEnabled) hapticManager.lightTap();
+                  }}
+                  className="px-2.5 py-2 bg-slate-950/90 hover:bg-rose-950/80 text-rose-300 hover:text-rose-100 rounded-2xl border border-rose-500/40 transition-all active:scale-95 shadow-md flex items-center gap-1.5 text-xs font-extrabold cursor-pointer group"
+                  title={t('exitButtonTooltip', playerState.language || 'es')}
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-400 group-hover:scale-110 transition-transform" />
+                  <span className="hidden xs:inline">{t('exit', playerState.language || 'es')}</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Fever Meter Bar (Under Top HUD) */}
           <div className="relative z-20 w-full h-2 bg-slate-900 overflow-hidden">
@@ -976,6 +1339,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               {/* Action Buttons: Start Game + Mode Switcher Button */}
               <div className="w-full flex items-center gap-2">
                 <button
+                  data-tutorial="play-button"
                   onClick={onStartGame}
                   className="flex-1 py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-110 text-slate-950 font-black text-sm sm:text-base rounded-2xl shadow-xl hover:scale-102 active:scale-95 transition-all flex items-center justify-center gap-2 border border-yellow-300/50 tracking-wide uppercase"
                 >
@@ -1111,6 +1475,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Discrete Game Tip Banner at bottom of Start Screen */}
+            <GameTipBanner
+              lang={playerState.language || 'es'}
+              className="mt-3.5 animate-fade-in"
+            />
           </div>
         )}
 
@@ -1130,21 +1500,29 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           stars.map((star) => {
             const style = getStarStyle(star.type);
             return (
-              <button
+              <div
                 key={star.id}
-                onMouseDown={(e) => handleTapStar(star, e)}
-                onTouchStart={(e) => handleTapStar(star, e)}
-                className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full bg-gradient-to-tr ${style.bg} ${style.ring} ring-4 shadow-xl active:scale-90 transition-transform cursor-pointer`}
+                className="absolute transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-auto"
                 style={{
                   left: `${star.x}%`,
                   top: `${star.y}%`,
                   width: `${star.size}px`,
                   height: `${star.size}px`,
-                  animation: `pulse 0.6s infinite alternate`,
                 }}
               >
-                <span className="text-2xl sm:text-3xl select-none">{style.icon}</span>
-              </button>
+                {/* Main Interactive Star Button */}
+                <button
+                  onMouseDown={(e) => handleTapStar(star, e)}
+                  onTouchStart={(e) => handleTapStar(star, e)}
+                  className={`w-full h-full flex items-center justify-center rounded-full bg-gradient-to-tr ${style.bg} ${style.ring} ring-4 shadow-[0_8px_25px_rgba(0,0,0,0.5)] active:scale-90 transition-all duration-150 cursor-pointer relative z-10`}
+                  style={{
+                    animation: `pulse 0.6s infinite alternate`,
+                    filter: `drop-shadow(0 6px 10px ${style.shadowColor})`,
+                  }}
+                >
+                  <span className="text-2xl sm:text-3xl select-none">{style.icon}</span>
+                </button>
+              </div>
             );
           })}
 
@@ -1187,6 +1565,138 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           <div className="flex items-center gap-2">
             <span>Racha Máxima:</span>
             <span className="font-extrabold text-yellow-300">{maxCombo}x</span>
+          </div>
+        </div>
+      )}
+
+      {/* Exit Match Confirmation Dialog */}
+      {isConfirmingExit && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in select-none">
+          <div className="relative w-full max-w-sm bg-slate-900/95 border-2 border-amber-500/50 rounded-[2rem] p-5 sm:p-6 shadow-2xl text-white text-center flex flex-col items-center gap-4 animate-scale-up">
+            {/* Ambient Glow Aura */}
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-amber-500/15 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Warning Icon Badge */}
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-orange-500/20 to-red-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shadow-xl">
+              <AlertTriangle className="w-8 h-8 text-amber-400 animate-pulse" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-xl font-black text-white tracking-tight drop-shadow">
+                {t('exitMatchTitle', playerState.language || 'es')}
+              </h3>
+              <p className="text-xs text-slate-300 font-medium leading-relaxed bg-slate-950/70 p-3 rounded-2xl border border-slate-800/80">
+                {t('exitMatchMessage', playerState.language || 'es')}
+              </p>
+            </div>
+
+            {/* Current Score Summary */}
+            <div className="w-full bg-slate-950/90 px-4 py-2.5 rounded-2xl border border-amber-500/30 flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-extrabold uppercase tracking-wider text-[10px]">
+                {t('currentScoreLabel', playerState.language || 'es')}
+              </span>
+              <span className="text-amber-300 font-mono font-black text-sm">
+                {score.toLocaleString()} {t('pts', playerState.language || 'es')}
+              </span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-2.5 w-full pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playButtonClick();
+                  setIsConfirmingExit(false);
+                  if (playerState.hapticsEnabled) hapticManager.lightTap();
+                }}
+                className="py-3 px-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all hover:brightness-110 cursor-pointer"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{t('resumeGame', playerState.language || 'es')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playButtonClick();
+                  setIsConfirmingExit(false);
+                  onGameOver(score, { ...matchStatsRef.current });
+                }}
+                className="py-3 px-3 rounded-2xl bg-slate-950 hover:bg-rose-950/80 text-rose-300 hover:text-rose-100 border border-rose-500/40 font-extrabold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+                <span>{t('confirmExit', playerState.language || 'es')}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* In-Game Active Pause Modal */}
+      {isPaused && (
+        <InGamePauseModal
+          score={score}
+          combo={combo}
+          maxCombo={maxCombo}
+          starsTapped={matchStatsRef.current.starsTapped}
+          diamondTapped={matchStatsRef.current.diamond}
+          soundEnabled={playerState.soundEnabled}
+          hapticsEnabled={playerState.hapticsEnabled}
+          language={playerState.language || 'es'}
+          onResume={() => setIsPaused(false)}
+          onRestart={() => {
+            setIsPaused(false);
+            resetMatch();
+            setMatchCountdown(3);
+            soundManager.playCountdownTick();
+            setTimeout(() => {
+              setMatchCountdown(2);
+              soundManager.playCountdownTick();
+            }, 900);
+            setTimeout(() => {
+              setMatchCountdown(1);
+              soundManager.playCountdownTick();
+            }, 1800);
+            setTimeout(() => {
+              setMatchCountdown(0);
+              soundManager.playCountdownGo();
+            }, 2700);
+            setTimeout(() => {
+              setMatchCountdown(null);
+            }, 3400);
+          }}
+          onExit={() => {
+            setIsPaused(false);
+            onGameOver(score, { ...matchStatsRef.current });
+          }}
+          onToggleSound={onToggleSound || (() => {})}
+          onToggleHaptics={onToggleHaptics || (() => {})}
+        />
+      )}
+
+      {/* Second Chance Revive Modal */}
+      {showReviveModal && (
+        <ReviveModal
+          score={score}
+          gameMode={gameMode}
+          userCoins={playerState.coins}
+          language={playerState.language || 'es'}
+          onReviveWithAd={handleReviveWithAd}
+          onReviveWithCoins={handleReviveWithCoins}
+          onSkip={handleSkipRevive}
+        />
+      )}
+
+      {/* Pro Match Start Cinematic Countdown Overlay (3, 2, 1, ¡A JUGAR!) */}
+      {matchCountdown !== null && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in pointer-events-none select-none">
+          <div className="flex flex-col items-center justify-center text-center animate-scale-up">
+            <div className="w-36 h-36 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-400 to-orange-500 flex items-center justify-center text-6xl font-black text-slate-950 shadow-[0_0_80px_rgba(245,158,11,0.6)] border-4 border-yellow-200 animate-bounce">
+              {matchCountdown === 0 ? '🚀' : matchCountdown}
+            </div>
+            <div className="mt-4 text-3xl sm:text-4xl font-black text-white tracking-widest drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] uppercase">
+              {matchCountdown === 0 ? (playerState.language === 'en' ? 'LET\'S PLAY!' : '¡A JUGAR!') : (playerState.language === 'en' ? 'READY...' : '¡LISTOS...!')}
+            </div>
           </div>
         </div>
       )}

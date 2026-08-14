@@ -135,3 +135,29 @@ export async function scheduleDailyQuestReminder() {
     }
   }
 }
+
+export async function cancelDailyQuestReminder() {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await LocalNotifications.cancel({
+        notifications: [{ id: 9001 }],
+      });
+      console.log('[Push Notifications] Cancelled daily quest reminder.');
+    } catch (err) {
+      console.warn('[Push Notifications] Failed to cancel reminder:', err);
+    }
+  }
+}
+
+export async function toggleDailyQuestReminder(enabled: boolean) {
+  if (enabled) {
+    const granted = await initNotifications();
+    if (granted) {
+      await scheduleDailyQuestReminder();
+    }
+  } else {
+    await cancelDailyQuestReminder();
+  }
+}
+
+

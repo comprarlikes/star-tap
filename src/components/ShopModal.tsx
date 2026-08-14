@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { PlayerState, ShopItem } from '../types';
 import { soundManager } from '../services/sound';
 import { SHOP_ITEMS } from '../services/storage';
-import { X, Check, ShoppingBag, Lock, Sparkles, Shield, Clock, Zap, Tv } from 'lucide-react';
+import { MYSTERY_BOX_PRICE } from '../services/mysteryBoxService';
+import { MysteryBoxModal } from './MysteryBoxModal';
+import { X, Check, ShoppingBag, Lock, Sparkles, Shield, Clock, Zap, Tv, Gift } from 'lucide-react';
 
 interface ShopModalProps {
   playerState: PlayerState;
@@ -10,6 +12,7 @@ interface ShopModalProps {
   onBuyOrEquipItem: (item: ShopItem) => void;
   onUpgradePowerup: (upgradeKey: string, cost: number) => void;
   onWatchAd?: () => void;
+  onUpdatePlayerState: (newState: PlayerState) => void;
 }
 
 export const ShopModal: React.FC<ShopModalProps> = ({
@@ -18,8 +21,10 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   onBuyOrEquipItem,
   onUpgradePowerup,
   onWatchAd,
+  onUpdatePlayerState,
 }) => {
-  const [activeTab, setActiveTab] = useState<'skin' | 'theme' | 'character' | 'upgrade'>('skin');
+  const [activeTab, setActiveTab] = useState<'box' | 'skin' | 'theme' | 'character' | 'upgrade'>('box');
+  const [showMysteryBoxModal, setShowMysteryBoxModal] = useState<boolean>(false);
 
   const filteredItems = SHOP_ITEMS.filter((item) => item.type === activeTab);
 
@@ -98,21 +103,33 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                 </div>
                 <div className="flex flex-col text-left">
                   <span className="text-xs font-black text-white">Ver Anuncio AdMob</span>
-                  <span className="text-[10px] text-pink-300 font-medium">Gana +150 Monedas al instante</span>
+                  <span className="text-[10px] text-pink-300 font-medium">Gana +80 Monedas al instante</span>
                 </div>
               </div>
               <span className="px-3 py-1 bg-amber-500 text-slate-950 text-xs font-black rounded-xl shadow border border-yellow-200/50 uppercase tracking-wider">
-                Ver (+150🪙)
+                Ver (+80🪙)
               </span>
             </button>
           </div>
         )}
 
         {/* Tab Buttons (Segmented Bento Control) */}
-        <div className="grid grid-cols-4 p-2 bg-slate-950/80 border-b border-slate-800 text-xs font-bold gap-1.5">
+        <div className="grid grid-cols-5 p-1.5 bg-slate-950/80 border-b border-slate-800 text-[11px] font-bold gap-1">
+          <button
+            onClick={() => setActiveTab('box')}
+            className={`py-2 rounded-xl transition-all flex flex-col items-center gap-0.5 ${
+              activeTab === 'box'
+                ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 shadow-md font-black'
+                : 'text-amber-400/90 hover:text-amber-300'
+            }`}
+          >
+            <span className="text-sm animate-pulse">🎁</span>
+            <span>Cajas</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('skin')}
-            className={`py-2 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`py-2 rounded-xl transition-all flex flex-col items-center gap-0.5 ${
               activeTab === 'skin' ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -122,7 +139,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
 
           <button
             onClick={() => setActiveTab('theme')}
-            className={`py-2 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`py-2 rounded-xl transition-all flex flex-col items-center gap-0.5 ${
               activeTab === 'theme' ? 'bg-purple-600 text-white shadow-md font-extrabold' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -132,7 +149,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
 
           <button
             onClick={() => setActiveTab('character')}
-            className={`py-2 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`py-2 rounded-xl transition-all flex flex-col items-center gap-0.5 ${
               activeTab === 'character' ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -142,7 +159,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
 
           <button
             onClick={() => setActiveTab('upgrade')}
-            className={`py-2 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`py-2 rounded-xl transition-all flex flex-col items-center gap-0.5 ${
               activeTab === 'upgrade' ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -153,7 +170,60 @@ export const ShopModal: React.FC<ShopModalProps> = ({
 
         {/* Shop Items List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {filteredItems.map((item) => {
+          {/* Mystery Box Tab Showcase */}
+          {activeTab === 'box' && (
+            <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/40 border-2 border-amber-500/40 rounded-3xl p-5 shadow-2xl relative overflow-hidden flex flex-col items-center text-center gap-4">
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" />
+
+              <div className="relative">
+                <div className="w-24 h-24 rounded-2xl bg-slate-950 border border-amber-400/50 flex items-center justify-center text-5xl shadow-xl shadow-amber-500/20">
+                  🎁
+                </div>
+                <span className="absolute -top-2 -right-2 bg-amber-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow">
+                  NUEVO
+                </span>
+              </div>
+
+              <div>
+                <h4 className="text-xl font-black text-amber-400 tracking-tight">CAJA DE SORPRESAS ARCADE</h4>
+                <p className="text-xs text-slate-300 mt-1 max-w-xs leading-relaxed">
+                  ¡Abre la caja misteriosa para conseguir recompensas aleatorias con probabilidad transparente!
+                </p>
+              </div>
+
+              {/* Reward categories badges */}
+              <div className="grid grid-cols-3 gap-2 w-full text-[11px] font-bold">
+                <div className="bg-slate-950/80 border border-amber-500/30 p-2 rounded-xl text-amber-300 flex flex-col items-center gap-0.5">
+                  <span>🪙 Monedas</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Hasta 2,000</span>
+                </div>
+                <div className="bg-slate-950/80 border border-purple-500/30 p-2 rounded-xl text-purple-300 flex flex-col items-center gap-0.5">
+                  <span>⚡ Potenciador</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Partidas x2</span>
+                </div>
+                <div className="bg-slate-950/80 border border-pink-500/30 p-2 rounded-xl text-pink-300 flex flex-col items-center gap-0.5">
+                  <span>⭐ Skin Rara</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Desbloqueo</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  soundManager.playButtonClick();
+                  setShowMysteryBoxModal(true);
+                }}
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:brightness-110 active:scale-98 text-slate-950 font-black text-sm rounded-2xl shadow-xl shadow-amber-500/20 border border-yellow-200 transition-all flex items-center justify-center gap-2 mt-1"
+              >
+                <Gift className="w-5 h-5 animate-bounce" />
+                <span>COMPRAR CAJA SORPRESA</span>
+                <span className="bg-slate-950/30 px-2.5 py-0.5 rounded-xl border border-slate-900/40 text-xs font-black">
+                  🪙 {MYSTERY_BOX_PRICE}
+                </span>
+              </button>
+            </div>
+          )}
+
+          {activeTab !== 'box' && filteredItems.map((item) => {
             const unlocked = isUnlocked(item);
             const equipped = isEquipped(item);
 
@@ -281,6 +351,15 @@ export const ShopModal: React.FC<ShopModalProps> = ({
           })}
         </div>
       </div>
+
+      {showMysteryBoxModal && (
+        <MysteryBoxModal
+          playerState={playerState}
+          onClose={() => setShowMysteryBoxModal(false)}
+          onUpdatePlayerState={onUpdatePlayerState}
+          onBuyOrEquipItem={onBuyOrEquipItem}
+        />
+      )}
     </div>
   );
 };
