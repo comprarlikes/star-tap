@@ -4,7 +4,8 @@ import { PlayerState } from '../types';
 import { soundManager } from '../services/sound';
 import { hapticManager } from '../services/haptics';
 import { getAvatarById } from '../data/avatars';
-import { User, X, Check, Award, Sparkles, Shield, Star, Coins, Cloud, Globe, Settings, Vibrate, Smartphone, ShieldCheck, UserPlus, LogIn, UserCheck, Compass, Bell, BellRing } from 'lucide-react';
+import { User, X, Check, Award, Sparkles, Shield, Star, Coins, Cloud, Globe, Settings, Vibrate, Smartphone, ShieldCheck, UserPlus, LogIn, UserCheck, Compass, Bell, BellRing, Copy, Users } from 'lucide-react';
+import { getMyPlayerCode } from '../services/friends';
 import { t, Language } from '../i18n';
 
 interface ProfileModalProps {
@@ -18,6 +19,7 @@ interface ProfileModalProps {
   onOpenAuth?: () => void;
   onOpenEuConsent?: () => void;
   onOpenAvatarSelector?: () => void;
+  onOpenFriends?: () => void;
   onReplayTutorial?: () => void;
 }
 
@@ -32,15 +34,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onOpenAuth,
   onOpenEuConsent,
   onOpenAvatarSelector,
+  onOpenFriends,
   onReplayTutorial,
 }) => {
   const [nameInput, setNameInput] = useState(playerState.name);
   const [isSaved, setIsSaved] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
   const lang = playerState.language || 'es';
   const hapticsEnabled = playerState.hapticsEnabled ?? true;
   const questRemindersEnabled = playerState.questRemindersEnabled ?? true;
   const isRegistered = currentUser && !currentUser.isAnonymous;
   const currentAvatar = getAvatarById(playerState.avatar);
+  const myPlayerCode = getMyPlayerCode(currentUser?.uid);
 
   const getTitleByLevel = (lvl: number) => {
     if (lvl >= 15) return t('levelTitleCosmicLegend', lang);
@@ -179,6 +184,55 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </button>
             </div>
           )}
+
+          {/* Pilot Code & Friends Shortcut Card */}
+          <div className="bg-gradient-to-r from-purple-950/40 via-slate-950 to-slate-900 p-3.5 rounded-2xl border border-purple-500/30 flex items-center justify-between gap-3 shadow-md">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/30 shrink-0">
+                <Users className="w-5 h-5" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  {lang === 'es' ? 'Mi ID de Piloto' : 'My Pilot ID'}
+                </span>
+                <span className="text-xs font-mono font-black text-amber-300 tracking-wide select-all truncate">
+                  {myPlayerCode}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playButtonClick();
+                  hapticManager.lightTap();
+                  navigator.clipboard?.writeText(myPlayerCode);
+                  setCopiedId(true);
+                  setTimeout(() => setCopiedId(false), 2000);
+                }}
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-1 cursor-pointer shadow"
+              >
+                {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span className="text-[10px]">{copiedId ? (lang === 'es' ? '¡Copiado!' : 'Copied!') : (lang === 'es' ? 'Copiar' : 'Copy')}</span>
+              </button>
+
+              {onOpenFriends && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playButtonClick();
+                    onClose();
+                    onOpenFriends();
+                  }}
+                  className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:brightness-110 text-white font-extrabold text-xs rounded-xl shadow border border-pink-400/40 flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                >
+                  <Users className="w-3.5 h-3.5 text-pink-200" />
+                  <span className="text-[10px]">{lang === 'es' ? 'AMIGOS' : 'FRIENDS'}</span>
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Settings Section Header with Gear Icon (Engranaje) */}
           <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 rounded-2xl border border-slate-800 space-y-4 shadow-md relative overflow-hidden">

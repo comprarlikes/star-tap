@@ -273,7 +273,7 @@ export const SHOP_ITEMS: ShopItem[] = [
 ];
 
 export const INITIAL_ACHIEVEMENTS: Achievement[] = [
-  // ARCADE & GENERAL ACHIEVEMENTS
+  // GAMEPLAY ACHIEVEMENTS
   {
     id: 'first_game',
     title: '¡Primer Toque!',
@@ -285,7 +285,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 1,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'tap_50_stars',
@@ -298,7 +298,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 50,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'tap_250_stars',
@@ -311,7 +311,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 250,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'tap_1000_stars',
@@ -324,7 +324,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 1000,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'diamond_collector',
@@ -337,7 +337,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 15,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'golden_star_master',
@@ -350,7 +350,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 30,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'combo_10',
@@ -363,7 +363,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 10,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'combo_20',
@@ -376,7 +376,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 20,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'combo_30',
@@ -389,7 +389,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 30,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'score_300',
@@ -402,7 +402,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 300,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'score_700',
@@ -415,7 +415,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 700,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'score_1500',
@@ -428,7 +428,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 1500,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'bomb_dodger',
@@ -441,7 +441,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 1,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
   {
     id: 'bombs_avoided_50',
@@ -454,8 +454,10 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 50,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'gameplay',
   },
+
+  // PROGRESSION ACHIEVEMENTS
   {
     id: 'coins_1000',
     title: 'Rico Galáctico',
@@ -467,7 +469,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 1000,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'progression',
   },
   {
     id: 'coins_5000',
@@ -480,7 +482,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 5000,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'progression',
   },
   {
     id: 'reach_level_5',
@@ -493,7 +495,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 5,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'progression',
   },
   {
     id: 'reach_level_10',
@@ -506,10 +508,8 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 10,
     unlocked: false,
     claimed: false,
-    category: 'arcade',
+    category: 'progression',
   },
-
-  // COLLECTION ACHIEVEMENTS
   {
     id: 'skin_collector',
     title: 'Estilo Estelar',
@@ -521,7 +521,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 3,
     unlocked: false,
     claimed: false,
-    category: 'collection',
+    category: 'progression',
   },
   {
     id: 'full_armory',
@@ -534,7 +534,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     target: 5,
     unlocked: false,
     claimed: false,
-    category: 'collection',
+    category: 'progression',
   },
 
   // SOCIAL & MULTIPLAYER ACHIEVEMENTS
@@ -797,7 +797,7 @@ export function loadAchievements(): Achievement[] {
               ...found,
               title: init.title,
               description: init.description,
-              category: init.category || 'arcade',
+              category: init.category || 'gameplay',
               target: init.target,
               rewardCoins: init.rewardCoins,
               rewardXp: init.rewardXp,

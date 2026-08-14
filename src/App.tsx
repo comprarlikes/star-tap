@@ -9,7 +9,9 @@ import {
   LeaderboardEntry,
   GhostRival,
   MultiplayerArena,
-  MultiplayerOpponent
+  MultiplayerOpponent,
+  Friend,
+  DirectChallenge
 } from './types';
 import { 
   loadPlayerState, 
@@ -22,6 +24,14 @@ import {
   getXpForNextLevel, 
   SHOP_ITEMS 
 } from './services/storage';
+import {
+  loadFriends,
+  saveFriends,
+  loadDirectChallenges,
+  saveDirectChallenges,
+  addFriendByIdOrName,
+  getMyPlayerCode
+} from './services/friends';
 import { soundManager } from './services/sound';
 import { 
   initAuth, 
@@ -38,6 +48,7 @@ import { QuestsModal } from './components/QuestsModal';
 import { AchievementsModal } from './components/AchievementsModal';
 import { AchievementToast, ToastItem } from './components/AchievementToast';
 import { LeaderboardModal } from './components/LeaderboardModal';
+import { FriendsModal } from './components/FriendsModal';
 import { StatsModal } from './components/StatsModal';
 import { ProfileModal } from './components/ProfileModal';
 import { AvatarSelectorModal } from './components/AvatarSelectorModal';
@@ -116,8 +127,12 @@ export default function App() {
 
   // Modals
   const [activeModal, setActiveModal] = useState<
-    'shop' | 'quests' | 'achievements' | 'leaderboard' | 'stats' | 'profile' | 'auth' | 'avatar' | null
+    'shop' | 'quests' | 'achievements' | 'leaderboard' | 'friends' | 'stats' | 'profile' | 'auth' | 'avatar' | null
   >(null);
+
+  // Friends & Social Challenges Data
+  const [friends, setFriends] = useState<Friend[]>(loadFriends);
+  const [directChallenges, setDirectChallenges] = useState<DirectChallenge[]>(loadDirectChallenges);
 
   // Quests & Achievements Data
   const [quests, setQuests] = useState<Quest[]>(generateDailyQuests);
@@ -1245,6 +1260,49 @@ export default function App() {
     toggleDailyQuestReminder(enabled);
   };
 
+  // Friends List & Direct Challenges Management
+  const handleUpdateFriends = (updated: Friend[]) => {
+    setFriends(updated);
+    saveFriends(updated);
+  };
+
+  const handleUpdateChallenges = (updated: DirectChallenge[]) => {
+    setDirectChallenges(updated);
+    saveDirectChallenges(updated);
+  };
+
+  const handleQuickAddFriend = (nameOrId: string) => {
+    const myCode = getMyPlayerCode(userId);
+    const result = addFriendByIdOrName(nameOrId, friends, leaderboard, myCode);
+    if (result.success && result.updatedFriends) {
+      handleUpdateFriends(result.updatedFriends);
+      setToastQueue((prev) => [
+        ...prev,
+        {
+          id: `friend_added_${Date.now()}`,
+          title: playerState.language === 'en' ? 'Friend Added!' : '¡Amigo Añadido!',
+          description: result.message,
+          icon: '👥',
+          type: 'achievement',
+        },
+      ]);
+    }
+  };
+
+  const handleStartDirectMatch = (friend: Friend, mode: GameMode, targetScore?: number) => {
+    setDuelGhostRival({
+      id: friend.id,
+      name: friend.name,
+      score: targetScore || friend.highScore,
+      avatar: getAvatarById(friend.avatar).emoji || '⭐',
+      flag: friend.flag || '🌍',
+      level: friend.level || 1,
+    });
+    setGameMode(mode === 'duel' ? 'duel' : mode);
+    setActiveModal(null);
+    setIsPlaying(false);
+  };
+
   // Get active Theme background style class
   const getThemeBackground = () => {
     switch (playerState.equippedTheme) {
@@ -1287,6 +1345,8 @@ export default function App() {
           onOpenQuests={() => setActiveModal('quests')}
           onOpenAchievements={() => setActiveModal('achievements')}
           onOpenLeaderboard={() => setActiveModal('leaderboard')}
+          onOpenFriends={() => setActiveModal('friends')}
+          hasPendingChallenges={directChallenges.some((c) => c.status === 'pending')}
           onOpenStats={() => setActiveModal('stats')}
           onOpenProfile={() => setActiveModal('profile')}
           onOpenMultiplayer={handleOpenMultiplayerLobby}
@@ -1431,6 +1491,8 @@ export default function App() {
           leaderboard={leaderboard}
           playerState={playerState}
           onClose={() => setActiveModal(null)}
+          onAddFriend={handleQuickAddFriend}
+          onOpenFriends={() => setActiveModal('friends')}
           onStartDuel={(entry) => {
             setDuelGhostRival({
               id: entry.id,
@@ -1444,6 +1506,20 @@ export default function App() {
             setActiveModal(null);
             setIsPlaying(false);
           }}
+        />
+      )}
+
+      {activeModal === 'friends' && (
+        <FriendsModal
+          playerState={playerState}
+          friends={friends}
+          directChallenges={directChallenges}
+          leaderboard={leaderboard}
+          userId={userId}
+          onClose={() => setActiveModal(null)}
+          onUpdateFriends={handleUpdateFriends}
+          onUpdateChallenges={handleUpdateChallenges}
+          onStartDirectMatch={handleStartDirectMatch}
         />
       )}
 
@@ -1466,6 +1542,7 @@ export default function App() {
           onOpenAuth={() => setActiveModal('auth')}
           onOpenEuConsent={() => setShowEuConsentModal(true)}
           onOpenAvatarSelector={() => setActiveModal('avatar')}
+          onOpenFriends={() => setActiveModal('friends')}
           onReplayTutorial={handleReplayTutorial}
         />
       )}

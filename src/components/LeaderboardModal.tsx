@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LeaderboardEntry, PlayerState } from '../types';
 import { soundManager } from '../services/sound';
-import { X, Trophy, Swords, Flame, Sparkles, Clock, Coins, Info, ShieldCheck } from 'lucide-react';
+import { X, Trophy, Swords, Flame, Sparkles, Clock, Coins, Info, ShieldCheck, UserPlus, Users, Check } from 'lucide-react';
 import { t } from '../i18n';
 
 interface LeaderboardModalProps {
@@ -9,6 +9,8 @@ interface LeaderboardModalProps {
   playerState: PlayerState;
   onClose: () => void;
   onStartDuel?: (entry: LeaderboardEntry) => void;
+  onAddFriend?: (nameOrId: string) => void;
+  onOpenFriends?: () => void;
 }
 
 export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
@@ -16,9 +18,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   playerState,
   onClose,
   onStartDuel,
+  onAddFriend,
+  onOpenFriends,
 }) => {
   const [activeTab, setActiveTab] = useState<'global' | 'tournament'>('tournament');
   const [showPrizeRules, setShowPrizeRules] = useState<boolean>(false);
+  const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
   // Dynamic countdown calculation for Weekly Tournament (ends on Sunday at 23:59:59)
   const calculateTimeLeft = () => {
     const now = new Date();
@@ -109,15 +114,32 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              soundManager.playButtonClick();
-              onClose();
-            }}
-            className="p-2 bg-slate-800/80 hover:bg-slate-700/80 rounded-2xl text-slate-400 hover:text-white border border-slate-700/60 transition-all active:scale-95"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onOpenFriends && (
+              <button
+                onClick={() => {
+                  soundManager.playButtonClick();
+                  onClose();
+                  onOpenFriends();
+                }}
+                className="px-2.5 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:brightness-110 text-white rounded-xl text-xs font-black border border-pink-400/40 flex items-center gap-1 shadow cursor-pointer transition-all active:scale-95"
+                title="Abrir Lista de Amigos"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span className="text-[10px]">{lang === 'es' ? 'AMIGOS' : 'FRIENDS'}</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => {
+                soundManager.playButtonClick();
+                onClose();
+              }}
+              className="p-2 bg-slate-800/80 hover:bg-slate-700/80 rounded-2xl text-slate-400 hover:text-white border border-slate-700/60 transition-all active:scale-95 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Tab Switcher Bar */}
@@ -313,18 +335,43 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       )}
                     </div>
 
-                    {!entry.isUser && onStartDuel && (
-                      <button
-                        onClick={() => {
-                          soundManager.playButtonClick();
-                          onStartDuel(entry);
-                        }}
-                        className="px-2.5 py-1.5 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:brightness-110 text-white font-black text-[11px] rounded-xl shadow border border-pink-400/40 flex items-center gap-1 transition-transform active:scale-95"
-                        title={`Desafiar a ${entry.name}`}
-                      >
-                        <Swords className="w-3.5 h-3.5" />
-                        <span>Retar</span>
-                      </button>
+                    {!entry.isUser && (
+                      <div className="flex items-center gap-1">
+                        {onAddFriend && (
+                          <button
+                            onClick={() => {
+                              soundManager.playButtonClick();
+                              onAddFriend(entry.name);
+                              setAddedIds((prev) => ({ ...prev, [entry.id]: true }));
+                              setTimeout(() => {
+                                setAddedIds((prev) => ({ ...prev, [entry.id]: false }));
+                              }, 2000);
+                            }}
+                            className={`p-1.5 rounded-xl border text-xs transition-all active:scale-95 cursor-pointer ${
+                              addedIds[entry.id]
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                                : 'bg-slate-900 hover:bg-slate-800 text-amber-300 border-slate-700/80'
+                            }`}
+                            title={`Añadir a ${entry.name} como amigo`}
+                          >
+                            {addedIds[entry.id] ? <Check className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+
+                        {onStartDuel && (
+                          <button
+                            onClick={() => {
+                              soundManager.playButtonClick();
+                              onStartDuel(entry);
+                            }}
+                            className="px-2.5 py-1.5 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:brightness-110 text-white font-black text-[11px] rounded-xl shadow border border-pink-400/40 flex items-center gap-1 transition-transform active:scale-95 cursor-pointer"
+                            title={`Desafiar a ${entry.name}`}
+                          >
+                            <Swords className="w-3.5 h-3.5" />
+                            <span>Retar</span>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -379,18 +426,43 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       <span className="text-[10px] text-slate-500">{entry.date}</span>
                     </div>
 
-                    {!entry.isUser && onStartDuel && (
-                      <button
-                        onClick={() => {
-                          soundManager.playButtonClick();
-                          onStartDuel(entry);
-                        }}
-                        className="px-2.5 py-1.5 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:brightness-110 text-white font-black text-[11px] rounded-xl shadow border border-pink-400/40 flex items-center gap-1 transition-transform active:scale-95"
-                        title={`Desafiar el fantasma de ${entry.name}`}
-                      >
-                        <Swords className="w-3.5 h-3.5" />
-                        <span>Retar</span>
-                      </button>
+                    {!entry.isUser && (
+                      <div className="flex items-center gap-1">
+                        {onAddFriend && (
+                          <button
+                            onClick={() => {
+                              soundManager.playButtonClick();
+                              onAddFriend(entry.name);
+                              setAddedIds((prev) => ({ ...prev, [entry.id]: true }));
+                              setTimeout(() => {
+                                setAddedIds((prev) => ({ ...prev, [entry.id]: false }));
+                              }, 2000);
+                            }}
+                            className={`p-1.5 rounded-xl border text-xs transition-all active:scale-95 cursor-pointer ${
+                              addedIds[entry.id]
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                                : 'bg-slate-900 hover:bg-slate-800 text-amber-300 border-slate-700/80'
+                            }`}
+                            title={`Añadir a ${entry.name} como amigo`}
+                          >
+                            {addedIds[entry.id] ? <Check className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+
+                        {onStartDuel && (
+                          <button
+                            onClick={() => {
+                              soundManager.playButtonClick();
+                              onStartDuel(entry);
+                            }}
+                            className="px-2.5 py-1.5 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:brightness-110 text-white font-black text-[11px] rounded-xl shadow border border-pink-400/40 flex items-center gap-1 transition-transform active:scale-95 cursor-pointer"
+                            title={`Desafiar el fantasma de ${entry.name}`}
+                          >
+                            <Swords className="w-3.5 h-3.5" />
+                            <span>Retar</span>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

@@ -77,6 +77,8 @@ export interface ShopItem {
   effectDescription?: string;
 }
 
+export type AchievementCategory = 'all' | 'gameplay' | 'social' | 'progression' | 'arcade' | 'collection';
+
 export interface Achievement {
   id: string;
   title: string;
@@ -88,7 +90,7 @@ export interface Achievement {
   target: number;
   unlocked: boolean;
   claimed: boolean;
-  category?: 'all' | 'arcade' | 'social' | 'collection';
+  category?: 'gameplay' | 'social' | 'progression' | 'arcade' | 'collection';
 }
 
 export interface Quest {
@@ -204,6 +206,39 @@ export interface LiveEmote {
 }
 
 export type MysteryBoxRarity = 'common' | 'rare' | 'epic' | 'legendary';
+
+export interface Friend {
+  id: string; // User ID or code, e.g. "STAR-8492" or Firebase UID
+  name: string;
+  avatar: string;
+  flag?: string;
+  level: number;
+  trophies: number;
+  highScore: number;
+  winStreak?: number;
+  status: 'online' | 'in_game' | 'offline';
+  lastActive: string;
+  customTitle?: string;
+  addedAt: string;
+  isFavorite?: boolean;
+}
+
+export interface DirectChallenge {
+  id: string;
+  fromId: string;
+  fromName: string;
+  fromAvatar: string;
+  toId: string;
+  toName: string;
+  targetScore: number;
+  mode: GameMode;
+  createdAt: string;
+  status: 'pending' | 'accepted' | 'completed' | 'declined';
+  wagerCoins?: number;
+  rewardCoins?: number;
+  rewardXp?: number;
+  resultScore?: number;
+}
 
 export interface PlayerState {
   name: string;

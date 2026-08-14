@@ -12,14 +12,12 @@ import {
   Volume2, 
   VolumeX, 
   Zap, 
-  Clock, 
-  Flame,
-  Smile,
-  Swords,
-  Smartphone,
-  Monitor,
-  User,
-  Gift
+  Swords, 
+  Smartphone, 
+  Monitor, 
+  User, 
+  Gift,
+  Users
 } from 'lucide-react';
 
 interface HeaderHUDProps {
@@ -31,6 +29,7 @@ interface HeaderHUDProps {
   onOpenQuests: () => void;
   onOpenAchievements: () => void;
   onOpenLeaderboard: () => void;
+  onOpenFriends?: () => void;
   onOpenStats: () => void;
   onOpenProfile: () => void;
   onToggleSound: () => void;
@@ -44,6 +43,7 @@ interface HeaderHUDProps {
   hasFreeLuckySpin?: boolean;
   onOpenMultiplayer?: () => void;
   onOpenAd?: () => void;
+  hasPendingChallenges?: boolean;
 }
 
 export const HeaderHUD: React.FC<HeaderHUDProps> = ({
@@ -55,6 +55,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
   onOpenQuests,
   onOpenAchievements,
   onOpenLeaderboard,
+  onOpenFriends,
   onOpenStats,
   onOpenProfile,
   onToggleSound,
@@ -68,6 +69,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
   hasFreeLuckySpin = false,
   onOpenMultiplayer,
   onOpenAd,
+  hasPendingChallenges = false,
 }) => {
   const currentXpTarget = getXpForNextLevel(playerState.level);
   const xpPercent = Math.min(100, Math.floor((playerState.xp / currentXpTarget) * 100));
@@ -124,77 +126,6 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           </div>
         )}
       </div>
-
-      {/* Middle: Mode Selector (Bento Segmented Control) */}
-      {!isPlaying && (
-        <div className="flex items-center bg-slate-950/80 p-1 rounded-2xl border border-slate-800/80 shadow-inner" data-tutorial="mode-selector">
-          <button
-            onClick={() => setGameMode('blitz')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              gameMode === 'blitz'
-                ? 'bg-amber-500 text-slate-950 shadow-md scale-105'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5" />
-            <span>60s {t('blitzMode', lang)}</span>
-          </button>
-          
-          <button
-            onClick={() => setGameMode('endless')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              gameMode === 'endless'
-                ? 'bg-red-500 text-white shadow-md scale-105'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5" />
-            <span>{t('endlessMode', lang)}</span>
-          </button>
-
-          <button
-            onClick={() => setGameMode('fever')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              gameMode === 'fever'
-                ? 'bg-purple-600 text-white shadow-md scale-105'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>{t('feverMode', lang)}</span>
-          </button>
-
-          <button
-            onClick={() => setGameMode('zen')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              gameMode === 'zen'
-                ? 'bg-emerald-500 text-slate-950 shadow-md scale-105 font-extrabold'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Smile className="w-3.5 h-3.5" />
-            <span>{t('zenMode', lang)}</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (onOpenMultiplayer) {
-                onOpenMultiplayer();
-              } else {
-                setGameMode('duel');
-              }
-            }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              gameMode === 'duel'
-                ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 text-white shadow-md scale-105 font-extrabold ring-1 ring-pink-400'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Swords className="w-3.5 h-3.5 text-pink-300" />
-            <span>{t('duelMode', lang)} 1v1</span>
-          </button>
-        </div>
-      )}
 
       {/* Right Action Icons & Modals */}
       <div className="flex items-center gap-1.5" data-tutorial="shop-buttons">
@@ -280,6 +211,23 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
         >
           <Trophy className="w-4 h-4" />
         </button>
+
+        {onOpenFriends && (
+          <button
+            onClick={onOpenFriends}
+            className={`relative p-2 rounded-xl border transition-transform active:scale-95 shadow-sm ${
+              hasPendingChallenges
+                ? 'bg-gradient-to-tr from-pink-600 to-rose-600 text-white border-pink-300 animate-pulse'
+                : 'bg-slate-800/70 hover:bg-slate-700/80 text-pink-300 border-slate-700/60'
+            }`}
+            title={t('friends', lang)}
+          >
+            <Users className="w-4 h-4" />
+            {hasPendingChallenges && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full animate-ping" />
+            )}
+          </button>
+        )}
 
         <button
           onClick={onOpenStats}

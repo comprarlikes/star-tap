@@ -1349,6 +1349,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
                 {setGameMode && (
                   <button
+                    data-tutorial="mode-selector"
                     onClick={() => {
                       soundManager.playButtonClick();
                       hapticManager.lightTap();
