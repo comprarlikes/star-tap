@@ -102,7 +102,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                   <Tv className="w-5 h-5 text-amber-300 group-hover:scale-110 transition-transform" />
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="text-xs font-black text-white">Ver Anuncio AdMob</span>
+                  <span className="text-xs font-black text-white">Ver Anuncio Recompensado</span>
                   <span className="text-[10px] text-pink-300 font-medium">Gana +80 Monedas al instante</span>
                 </div>
               </div>

@@ -2,253 +2,343 @@ import {
   AdMob,
   InterstitialAdPluginEvents,
   BannerAdPluginEvents,
+  BannerAdPosition,
+  BannerAdSize,
   RewardAdPluginEvents,
-  AdMobError
+  AdMobRewardItem,
+  AdMobError,
+  AdOptions,
+  RewardAdOptions
 } from '@capacitor-community/admob';
 import { Capacitor } from '@capacitor/core';
 
-export const ADMOB_APP_ID = 'ca-app-pub-4623925469377930~9302870404';
-export const ADMOB_APP_OPEN_ID = 'ca-app-pub-4623925469377930/8716547044';
-export const ADMOB_CONSENT_AD_ID = 'ca-app-pub-4623925469377930/2039134652';
-export const ADMOB_INTERSTITIAL_ID = 'ca-app-pub-4623925469377930/5770819509'; // Rewarded Interstitial Ad Unit
-export const ADMOB_REWARDED_INTERSTITIAL_ID = 'ca-app-pub-4623925469377930/5770819509';
-export const ADMOB_BANNER_ID = 'ca-app-pub-3940256099942544/6300978111'; // Standard test banner
-export const ADMOB_REWARDED_ID = 'ca-app-pub-4623925469377930/5770819509';
+/**
+ * STAR TAP Google AdMob Central Configuration
+ * Separates Official Google Test IDs (Development/Testing) from Real Production IDs.
+ */
+export const ADMOB_TEST_IDS = {
+  appId: 'ca-app-pub-3940256099942544~3347511713',
+  interstitial: 'ca-app-pub-3940256099942544/1033173712',
+  rewarded: 'ca-app-pub-3940256099942544/5224354917',
+  appOpen: 'ca-app-pub-3940256099942544/9257395921',
+  banner: 'ca-app-pub-3940256099942544/6300978111',
+};
 
-let isInitialized = false;
-let isListenersRegistered = false;
-let adLoadedState = false;
-let adLoadingState = false;
+export const ADMOB_PRODUCTION_IDS = {
+  appId: 'ca-app-pub-4623925469377930~9302870404',
+  interstitial: 'ca-app-pub-4623925469377930/5770819509',
+  rewarded: 'ca-app-pub-4623925469377930/5770819509',
+  appOpen: 'ca-app-pub-4623925469377930/8716547044',
+  banner: 'ca-app-pub-3940256099942544/6300978111',
+};
 
-const adStateListeners = new Set<(isReady: boolean, isLoading: boolean) => void>();
+// Check if running in development environment
+const isDevelopment = process.env.NODE_ENV !== 'production';
 
-export function subscribeAdState(callback: (isReady: boolean, isLoading: boolean) => void) {
-  adStateListeners.add(callback);
-  callback(adLoadedState, adLoadingState);
-  return () => adStateListeners.delete(callback);
+export function getAdMobIds() {
+  return isDevelopment ? ADMOB_TEST_IDS : ADMOB_PRODUCTION_IDS;
 }
 
-function notifyAdStateChange(isReady: boolean, isLoading: boolean) {
-  adLoadedState = isReady;
-  adLoadingState = isLoading;
-  adStateListeners.forEach(cb => cb(isReady, isLoading));
+export function isAdTesting(): boolean {
+  return isDevelopment;
 }
 
-export function isAdReady(): boolean {
-  return adLoadedState;
+/**
+ * AdMob Global State Interface
+ */
+export interface AdMobState {
+  isInitialized: boolean;
+  isInterstitialLoading: boolean;
+  isInterstitialReady: boolean;
+  isInterstitialShowing: boolean;
+  isRewardedLoading: boolean;
+  isRewardedReady: boolean;
+  isRewardedShowing: boolean;
 }
 
-export function isAdLoading(): boolean {
-  return adLoadingState;
+export interface RewardedAdResult {
+  success: boolean;
+  rewarded: boolean;
+  reward?: AdMobRewardItem;
+  error?: string;
 }
 
-export function setupAdMobListeners() {
-  if (isListenersRegistered || !Capacitor.isNativePlatform()) return;
+export interface InterstitialAdResult {
+  success: boolean;
+  error?: string;
+}
 
-  try {
-    // Interstitial Event Listeners
-    AdMob.addListener(InterstitialAdPluginEvents.Loaded, () => {
-      console.log('[AdMob Event] onAdLoaded: Interstitial ad loaded successfully.');
-      notifyAdStateChange(true, false);
-    });
+let state: AdMobState = {
+  isInitialized: false,
+  isInterstitialLoading: false,
+  isInterstitialReady: false,
+  isInterstitialShowing: false,
+  isRewardedLoading: false,
+  isRewardedReady: false,
+  isRewardedShowing: false,
+};
 
-    AdMob.addListener(InterstitialAdPluginEvents.FailedToLoad, (error: AdMobError) => {
-      console.error('[AdMob Event] onAdFailedToLoad: Interstitial ad failed to load:', error);
-      notifyAdStateChange(false, false);
-    });
+const listeners = new Set<(currentState: AdMobState) => void>();
 
-    AdMob.addListener(InterstitialAdPluginEvents.Showed, () => {
-      console.log('[AdMob Event] onAdImpression: Interstitial ad showed / impression recorded.');
-      notifyAdStateChange(false, false);
-    });
-
-    AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
-      console.log('[AdMob Event] onAdDismissed: Interstitial ad closed.');
-      notifyAdStateChange(false, false);
-    });
-
-    AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, (error: AdMobError) => {
-      console.error('[AdMob Event] onAdFailedToShow: Interstitial ad failed to show:', error);
-      notifyAdStateChange(false, false);
-    });
-
-    // Check for Clicked and Impression events if available in plugin enum or string listeners
+function updateState(partial: Partial<AdMobState>) {
+  state = { ...state, ...partial };
+  listeners.forEach((cb) => {
     try {
-      AdMob.addListener('interstitialAdClicked' as any, () => {
-        console.log('[AdMob Event] onAdClicked: Interstitial ad clicked.');
-      });
-      AdMob.addListener('interstitialAdImpression' as any, () => {
-        console.log('[AdMob Event] onAdImpression: Interstitial ad impression recorded.');
-      });
+      cb(state);
     } catch (e) {
-      // safe fallback
+      console.error('[AdMob] State listener error:', e);
     }
-
-    // Banner Event Listeners
-    AdMob.addListener(BannerAdPluginEvents.Loaded, () => {
-      console.log('[AdMob Event] onAdLoaded: Banner ad loaded successfully.');
-    });
-
-    AdMob.addListener(BannerAdPluginEvents.FailedToLoad, (error: AdMobError) => {
-      console.error('[AdMob Event] onAdFailedToLoad: Banner ad failed to load:', error);
-    });
-
-    AdMob.addListener(BannerAdPluginEvents.Opened, () => {
-      console.log('[AdMob Event] onAdClicked: Banner ad opened / clicked.');
-    });
-
-    AdMob.addListener(BannerAdPluginEvents.Closed, () => {
-      console.log('[AdMob Event] Banner ad closed.');
-    });
-
-    // Rewarded Video Event Listeners
-    AdMob.addListener(RewardAdPluginEvents.Loaded, () => {
-      console.log('[AdMob Event] onAdLoaded: Rewarded ad loaded successfully.');
-      notifyAdStateChange(true, false);
-    });
-
-    AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error: AdMobError) => {
-      console.error('[AdMob Event] onAdFailedToLoad: Rewarded ad failed to load:', error);
-      notifyAdStateChange(false, false);
-    });
-
-    AdMob.addListener(RewardAdPluginEvents.Showed, () => {
-      console.log('[AdMob Event] onAdImpression: Rewarded ad impression recorded.');
-    });
-
-    AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
-      console.log('[AdMob Event] Rewarded ad dismissed by user.');
-      notifyAdStateChange(false, false);
-    });
-
-    AdMob.addListener(RewardAdPluginEvents.Rewarded, (reward: any) => {
-      console.log('[AdMob Event] User earned reward:', reward);
-    });
-
-    AdMob.addListener(RewardAdPluginEvents.FailedToShow, (error: AdMobError) => {
-      console.error('[AdMob Event] onAdFailedToShow: Rewarded ad failed to show:', error);
-      notifyAdStateChange(false, false);
-    });
-
-    try {
-      AdMob.addListener('rewardedVideoAdClicked' as any, () => {
-        console.log('[AdMob Event] onAdClicked: Rewarded ad clicked.');
-      });
-    } catch (e) {
-      // safe fallback
-    }
-
-    isListenersRegistered = true;
-    console.log('[AdMob SDK] Detailed event listeners (onAdLoaded, onAdFailedToLoad, onAdClicked, onAdImpression) initialized.');
-  } catch (err) {
-    console.warn('[AdMob SDK] Failed to set up listeners:', err);
-  }
+  });
 }
 
-export async function initializeAdMob() {
+export function subscribeAdState(callback: (currentState: AdMobState) => void): () => void {
+  listeners.add(callback);
+  callback(state);
+  return () => {
+    listeners.delete(callback);
+  };
+}
+
+export function getAdMobState(): AdMobState {
+  return { ...state };
+}
+
+/**
+ * Initialize Google AdMob SDK on Native platforms
+ */
+let isInitInProgress = false;
+
+export async function initializeAdMob(): Promise<boolean> {
+  if (state.isInitialized) return true;
   if (!Capacitor.isNativePlatform()) {
-    console.log('[AdMob Web] Running in browser preview environment. Visual ad overlay active.');
-    return;
+    console.log('[AdMob] Running in Web environment. Real AdMob requires a native mobile container (Capacitor Android/iOS).');
+    return false;
   }
+
+  if (isInitInProgress) return false;
+  isInitInProgress = true;
 
   try {
-    setupAdMobListeners();
+    const isTest = isAdTesting();
     await AdMob.initialize({
-      testingDevices: [],
-      initializeForTesting: false,
+      testingDevices: isTest ? ['EMULATOR'] : [],
+      initializeForTesting: isTest,
     });
-    isInitialized = true;
-    console.log('[AdMob Native] SDK Initialized with App ID:', ADMOB_APP_ID);
-  } catch (err) {
-    console.warn('[AdMob Native] Init warning (fallback active):', err);
+
+    updateState({ isInitialized: true });
+    console.log('[AdMob Native] Google Mobile Ads SDK initialized successfully (Test Mode:', isTest, ')');
+    return true;
+  } catch (err: any) {
+    console.warn('[AdMob Native] SDK Initialization warning:', err?.message || err);
+    return false;
+  } finally {
+    isInitInProgress = false;
   }
 }
 
-export async function prepareAndShowInterstitialAd(): Promise<boolean> {
-  console.log('[AdMob Request] Triggering Interstitial / Rewarded Ad Placement: ', ADMOB_INTERSTITIAL_ID);
-  notifyAdStateChange(false, true);
+/**
+ * SHOW REWARDED AD (Real AdMob SDK flow only)
+ *
+ * Flow:
+ * 1. Checks if ad is already showing or loading (prevents duplicates).
+ * 2. Checks native platform availability. If on Web, returns false (no fake reward).
+ * 3. Prepares Rewarded Video via AdMob SDK.
+ * 4. Listens specifically to onRewardedVideoAdReward.
+ * 5. Shows ad via AdMob SDK.
+ * 6. Returns { rewarded: true } ONLY if official SDK rewarded event fired.
+ */
+export async function showRewardedAd(): Promise<RewardedAdResult> {
+  // Prevent duplicate concurrent ad requests
+  if (state.isRewardedShowing || state.isInterstitialShowing) {
+    console.warn('[AdMob Rewarded] An ad is already displaying.');
+    return { success: false, rewarded: false, error: 'ad_already_showing' };
+  }
 
-  if (Capacitor.isNativePlatform()) {
-    try {
-      if (!isInitialized) {
-        await initializeAdMob();
-      }
+  if (state.isRewardedLoading) {
+    console.warn('[AdMob Rewarded] An ad is currently loading.');
+    return { success: false, rewarded: false, error: 'ad_loading' };
+  }
 
-      console.log('[AdMob Native] Preparing ad for unit:', ADMOB_INTERSTITIAL_ID);
-      try {
-        await AdMob.prepareRewardVideoAd({
-          adId: ADMOB_REWARDED_INTERSTITIAL_ID,
-          isTesting: false,
-        });
-        console.log('[AdMob Event] onAdLoaded: Rewarded ad ready. Showing now...');
-        notifyAdStateChange(true, false);
-        await AdMob.showRewardVideoAd();
-        console.log('[AdMob Event] onAdImpression: Rewarded ad shown.');
-        return true;
-      } catch (rewardErr) {
-        console.log('[AdMob Native] Falling back to standard interstitial prepare:', rewardErr);
-        await AdMob.prepareInterstitial({
-          adId: ADMOB_INTERSTITIAL_ID,
-          isTesting: false,
-        });
-        console.log('[AdMob Event] onAdLoaded: Interstitial ad ready. Showing now...');
-        notifyAdStateChange(true, false);
-        await AdMob.showInterstitial();
-        console.log('[AdMob Event] onAdImpression: Interstitial ad shown.');
-        return true;
-      }
-    } catch (err) {
-      console.error('[AdMob Event] onAdFailedToLoad / onAdFailedToShow:', err);
-      notifyAdStateChange(false, false);
+  // Web Browser Fallback: Real AdMob is only available on native Android/iOS
+  if (!Capacitor.isNativePlatform()) {
+    console.log('[AdMob Rewarded] Native AdMob not available in web browser preview.');
+    return {
+      success: false,
+      rewarded: false,
+      error: 'not_available_on_web',
+    };
+  }
+
+  updateState({ isRewardedLoading: true });
+
+  try {
+    if (!state.isInitialized) {
+      await initializeAdMob();
     }
-  } else {
-    console.log('[AdMob Web] Simulation mode: Loading ad...');
-    setTimeout(() => {
-      console.log('[AdMob Event] onAdLoaded: Web simulated ad loaded.');
-      notifyAdStateChange(true, false);
-    }, 1200);
-  }
 
-  return false;
-}
+    const ids = getAdMobIds();
+    const isTest = isAdTesting();
 
-export async function prepareAndShowConsentAd(): Promise<boolean> {
-  console.log('[AdMob Request] Triggering Consent Ad Unit:', ADMOB_CONSENT_AD_ID);
-  notifyAdStateChange(false, true);
+    console.log('[AdMob Rewarded] Preparing real rewarded ad unit:', ids.rewarded);
 
-  if (Capacitor.isNativePlatform()) {
-    try {
-      if (!isInitialized) {
-        await initializeAdMob();
-      }
+    const rewardOptions: RewardAdOptions = {
+      adId: ids.rewarded,
+      isTesting: isTest,
+    };
 
-      console.log('[AdMob Native] Preparing consent ad unit:', ADMOB_CONSENT_AD_ID);
-      try {
-        await AdMob.prepareInterstitial({
-          adId: ADMOB_CONSENT_AD_ID,
-          isTesting: false,
+    await AdMob.prepareRewardVideoAd(rewardOptions);
+    updateState({ isRewardedLoading: false, isRewardedReady: true, isRewardedShowing: true });
+
+    return await new Promise<RewardedAdResult>((resolve) => {
+      let earnedReward = false;
+      let rewardData: AdMobRewardItem | undefined;
+      const handles: { remove: () => void }[] = [];
+
+      const cleanup = () => {
+        handles.forEach((h) => {
+          try {
+            h.remove();
+          } catch (e) {
+            // handle cleanup
+          }
         });
-        console.log('[AdMob Event] onAdLoaded: Consent Ad ready. Showing now...');
-        notifyAdStateChange(true, false);
-        await AdMob.showInterstitial();
-        console.log('[AdMob Event] onAdImpression: Consent Ad shown.');
-        return true;
-      } catch (err) {
-        console.error('[AdMob Native] Failed to load/show consent interstitial:', err);
-        notifyAdStateChange(false, false);
-      }
-    } catch (err) {
-      console.error('[AdMob Event] Consent Ad Error:', err);
-      notifyAdStateChange(false, false);
-    }
-  } else {
-    console.log('[AdMob Web] Simulation mode: Loading consent ad unit ca-app-pub-4623925469377930/2039134652...');
-    setTimeout(() => {
-      console.log('[AdMob Event] onAdLoaded: Web simulated consent ad loaded.');
-      notifyAdStateChange(true, false);
-    }, 1000);
-  }
+        updateState({ isRewardedShowing: false, isRewardedReady: false });
+      };
 
-  return false;
+      // 1. Reward event from official Google AdMob SDK
+      AdMob.addListener(RewardAdPluginEvents.Rewarded, (reward: AdMobRewardItem) => {
+        console.log('[AdMob Event] onRewardedVideoAdReward: User earned reward from SDK:', reward);
+        earnedReward = true;
+        rewardData = reward;
+      }).then((handle) => handles.push(handle));
+
+      // 2. Dismissed event (when user or SDK closes the ad)
+      AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
+        console.log('[AdMob Event] onRewardedVideoAdDismissed: Ad closed. Earned reward status:', earnedReward);
+        cleanup();
+        resolve({
+          success: true,
+          rewarded: earnedReward,
+          reward: rewardData,
+        });
+      }).then((handle) => handles.push(handle));
+
+      // 3. Failed to show event
+      AdMob.addListener(RewardAdPluginEvents.FailedToShow, (error: AdMobError) => {
+        console.error('[AdMob Event] onRewardedVideoAdFailedToShow:', error);
+        cleanup();
+        resolve({
+          success: false,
+          rewarded: false,
+          error: error.message || 'Failed to show rewarded ad',
+        });
+      }).then((handle) => handles.push(handle));
+
+      // 4. Show the ad
+      AdMob.showRewardVideoAd().catch((err: any) => {
+        console.error('[AdMob Rewarded] showRewardVideoAd call error:', err);
+        cleanup();
+        resolve({
+          success: false,
+          rewarded: false,
+          error: err?.message || 'Error executing showRewardVideoAd',
+        });
+      });
+    });
+  } catch (err: any) {
+    console.error('[AdMob Rewarded] Preparation error:', err);
+    updateState({ isRewardedLoading: false, isRewardedReady: false, isRewardedShowing: false });
+    return {
+      success: false,
+      rewarded: false,
+      error: err?.message || 'Error preparing rewarded ad',
+    };
+  }
 }
 
+/**
+ * SHOW INTERSTITIAL AD (Real AdMob SDK flow only)
+ *
+ * Flow:
+ * 1. Checks if ad is already showing.
+ * 2. Checks native platform availability.
+ * 3. Prepares Interstitial via AdMob SDK.
+ * 4. Shows Interstitial.
+ * 5. DOES NOT GRANT ANY REWARDS OR MODIFY USER CURRENCY/XP.
+ */
+export async function showInterstitialAd(): Promise<InterstitialAdResult> {
+  // Prevent duplicate concurrent ad requests
+  if (state.isInterstitialShowing || state.isRewardedShowing) {
+    console.warn('[AdMob Interstitial] An ad is already displaying.');
+    return { success: false, error: 'ad_already_showing' };
+  }
+
+  if (state.isInterstitialLoading) {
+    console.warn('[AdMob Interstitial] An interstitial is currently loading.');
+    return { success: false, error: 'ad_loading' };
+  }
+
+  // Web Browser Fallback: Real AdMob is only available on native Android/iOS
+  if (!Capacitor.isNativePlatform()) {
+    console.log('[AdMob Interstitial] Native AdMob not available in web browser preview.');
+    return { success: false, error: 'not_available_on_web' };
+  }
+
+  updateState({ isInterstitialLoading: true });
+
+  try {
+    if (!state.isInitialized) {
+      await initializeAdMob();
+    }
+
+    const ids = getAdMobIds();
+    const isTest = isAdTesting();
+
+    console.log('[AdMob Interstitial] Preparing real interstitial ad unit:', ids.interstitial);
+
+    const adOptions: AdOptions = {
+      adId: ids.interstitial,
+      isTesting: isTest,
+    };
+
+    await AdMob.prepareInterstitial(adOptions);
+    updateState({ isInterstitialLoading: false, isInterstitialReady: true, isInterstitialShowing: true });
+
+    return await new Promise<InterstitialAdResult>((resolve) => {
+      const handles: { remove: () => void }[] = [];
+
+      const cleanup = () => {
+        handles.forEach((h) => {
+          try {
+            h.remove();
+          } catch (e) {
+            // handle cleanup
+          }
+        });
+        updateState({ isInterstitialShowing: false, isInterstitialReady: false });
+      };
+
+      AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
+        console.log('[AdMob Event] onInterstitialAdDismissed: Interstitial ad closed.');
+        cleanup();
+        resolve({ success: true });
+      }).then((handle) => handles.push(handle));
+
+      AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, (error: AdMobError) => {
+        console.error('[AdMob Event] onInterstitialAdFailedToShow:', error);
+        cleanup();
+        resolve({ success: false, error: error.message || 'Failed to show interstitial' });
+      }).then((handle) => handles.push(handle));
+
+      AdMob.showInterstitial().catch((err: any) => {
+        console.error('[AdMob Interstitial] showInterstitial call error:', err);
+        cleanup();
+        resolve({ success: false, error: err?.message || 'Error executing showInterstitial' });
+      });
+    });
+  } catch (err: any) {
+    console.error('[AdMob Interstitial] Preparation error:', err);
+    updateState({ isInterstitialLoading: false, isInterstitialReady: false, isInterstitialShowing: false });
+    return { success: false, error: err?.message || 'Error preparing interstitial' };
+  }
+}

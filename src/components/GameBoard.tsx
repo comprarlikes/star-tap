@@ -49,7 +49,7 @@ interface GameBoardProps {
   onToggleSound?: () => void;
   onToggleHaptics?: () => void;
   onSpendCoins?: (amount: number) => boolean;
-  onWatchAdForRevive?: () => void;
+  onWatchAdForRevive?: () => Promise<boolean> | boolean | void;
   onSendEmote?: (emoji: string) => void;
 }
 
@@ -712,10 +712,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [isPlaying, isConfirmingExit, isPaused, matchCountdown, showReviveModal, timeLeft, lives, gameMode, score, opponentLiveScore, multiplayerOpponent, onMultiplayerGameOver, onGameOver]);
 
-  const handleReviveWithAd = () => {
+  const handleReviveWithAd = async () => {
+    if (onWatchAdForRevive) {
+      const rewarded = await onWatchAdForRevive();
+      if (!rewarded) {
+        // Did not earn reward (ad failed or closed early) - proceed to game over
+        setShowReviveModal(false);
+        onGameOver(score, { ...matchStatsRef.current });
+        return;
+      }
+    }
     hasUsedReviveRef.current = true;
     setShowReviveModal(false);
-    onWatchAdForRevive?.();
     if (gameMode === 'endless') {
       setLives(2);
     } else {

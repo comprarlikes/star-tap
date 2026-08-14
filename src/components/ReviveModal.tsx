@@ -85,9 +85,6 @@ export const ReviveModal: React.FC<ReviveModalProps> = ({
           <span className="uppercase tracking-wide">
             {lang === 'en' ? 'WATCH AD TO REVIVE (FREE)' : 'VER ANUNCIO PARA REVIVIR (GRATIS)'}
           </span>
-          <span className="text-[9px] bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black uppercase shadow">
-            AdMob
-          </span>
         </button>
 
         {/* Action 2: Spend Coins */}

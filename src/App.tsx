@@ -55,8 +55,6 @@ import { AvatarSelectorModal } from './components/AvatarSelectorModal';
 import { TutorialOverlay } from './components/TutorialOverlay';
 import { AuthModal } from './components/AuthModal';
 import { getAvatarById } from './data/avatars';
-import { AppOpenAdModal } from './components/AppOpenAdModal';
-import { AdMobRewardedModal } from './components/AdMobRewardedModal';
 import { EuConsentModal } from './components/EuConsentModal';
 import { SplashScreen } from './components/SplashScreen';
 import { DailyLoginBonusModal } from './components/DailyLoginBonusModal';
@@ -65,7 +63,7 @@ import { MultiplayerLobbyModal } from './components/MultiplayerLobbyModal';
 import { MultiplayerVersusShowdown } from './components/MultiplayerVersusShowdown';
 import { MultiplayerResultModal } from './components/MultiplayerResultModal';
 import { ARENAS } from './data/multiplayerArenas';
-import { initializeAdMob, prepareAndShowInterstitialAd } from './services/admob';
+import { initializeAdMob, showRewardedAd, showInterstitialAd } from './services/admob';
 import { hapticManager } from './services/haptics';
 import { 
   initNotifications, 
@@ -82,8 +80,6 @@ export default function App() {
   const [showSplashScreen, setShowSplashScreen] = useState<boolean>(true);
   const [showDailyBonusModal, setShowDailyBonusModal] = useState<boolean>(false);
   const [showLuckySpinModal, setShowLuckySpinModal] = useState<boolean>(false);
-  const [pendingDailyBonusAd, setPendingDailyBonusAd] = useState<{ coins: number; xp: number } | null>(null);
-  const [pendingSpinAd, setPendingSpinAd] = useState<boolean>(false);
   const [gameMode, setGameMode] = useState<GameMode>('blitz');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isMobileFrame, setIsMobileFrame] = useState<boolean>(false);
@@ -116,8 +112,6 @@ export default function App() {
     coinsDelta: number;
   } | null>(null);
 
-  const [showAppOpenAd, setShowAppOpenAd] = useState<boolean>(false);
-  const [showShopRewardedAd, setShowShopRewardedAd] = useState<boolean>(false);
   const [showEuConsentModal, setShowEuConsentModal] = useState<boolean>(() => {
     return localStorage.getItem('eu_gdpr_consent_accepted') !== 'true';
   });
@@ -624,39 +618,91 @@ export default function App() {
         duelResult,
       });
 
-      // Launch native AdMob Interstitial / Rewarded Interstitial Ad placement
-      prepareAndShowInterstitialAd().catch((err) =>
-        console.warn('AdMob trigger error:', err)
+      // Launch native AdMob Interstitial placement (does not grant rewards)
+      showInterstitialAd().catch((err) =>
+        console.warn('AdMob Interstitial trigger error:', err)
       );
     },
     [playerState, leaderboard, gameMode, duelGhostRival]
   );
 
-  // Double Coins Reward Action
-  const handleDoubleCoins = () => {
+  // Double Coins Reward Action (Google AdMob Rewarded SDK flow)
+  const handleDoubleCoins = async () => {
     if (!gameOverData || gameOverData.hasDoubledCoins) return;
 
-    soundManager.playCoin();
-    const extraCoins = gameOverData.coinsEarned;
+    const res = await showRewardedAd();
+    if (res.rewarded) {
+      soundManager.playCoin();
+      hapticManager.success();
+      const extraCoins = gameOverData.coinsEarned;
 
-    setPlayerState((prev) => ({
-      ...prev,
-      coins: prev.coins + extraCoins,
-      stats: {
-        ...prev.stats,
-        totalCoinsEarned: prev.stats.totalCoinsEarned + extraCoins,
-      },
-    }));
+      setPlayerState((prev) => {
+        const nextCoins = prev.coins + extraCoins;
+        const nextStats = {
+          ...prev.stats,
+          totalCoinsEarned: prev.stats.totalCoinsEarned + extraCoins,
+        };
+        const newState = {
+          ...prev,
+          coins: nextCoins,
+          stats: nextStats,
+        };
+        savePlayerState(newState);
+        if (userId) savePlayerStateToCloud(userId, newState);
+        return newState;
+      });
 
-    setGameOverData((prev) =>
-      prev
-        ? {
-            ...prev,
-            coinsEarned: prev.coinsEarned * 2,
-            hasDoubledCoins: true,
-          }
-        : null
-    );
+      setGameOverData((prev) =>
+        prev
+          ? {
+              ...prev,
+              coinsEarned: prev.coinsEarned * 2,
+              hasDoubledCoins: true,
+            }
+          : null
+      );
+
+      setToastQueue((prev) => [
+        ...prev,
+        {
+          id: `double_coins_${Date.now()}`,
+          type: 'achievement',
+          title: playerState.language === 'en' ? 'Coins Doubled!' : '¡Monedas Duplicadas!',
+          description: playerState.language === 'en' ? `+${extraCoins} bonus coins awarded!` : `¡+${extraCoins} monedas extra añadidas!`,
+          icon: '🪙',
+          rewardCoins: extraCoins,
+          rewardXp: 0,
+        },
+      ]);
+    } else {
+      if (res.error === 'not_available_on_web') {
+        setToastQueue((prev) => [
+          ...prev,
+          {
+            id: `ad_notice_${Date.now()}`,
+            type: 'achievement',
+            title: playerState.language === 'en' ? 'AdMob Notice' : 'Aviso AdMob',
+            description: playerState.language === 'en' ? 'Rewarded ads require the native Android/iOS app.' : 'Los anuncios recompensados están disponibles en la app móvil.',
+            icon: '📱',
+            rewardCoins: 0,
+            rewardXp: 0,
+          },
+        ]);
+      } else {
+        setToastQueue((prev) => [
+          ...prev,
+          {
+            id: `ad_incomplete_${Date.now()}`,
+            type: 'achievement',
+            title: playerState.language === 'en' ? 'Ad Cancelled' : 'Anuncio no completado',
+            description: playerState.language === 'en' ? 'Watch full video to double your coins.' : 'Debes ver el video completo para duplicar monedas.',
+            icon: '⚠️',
+            rewardCoins: 0,
+            rewardXp: 0,
+          },
+        ]);
+      }
+    }
   };
 
   // 1v1 Multiplayer Match Flow Handlers
@@ -1036,9 +1082,40 @@ export default function App() {
     ]);
   };
 
-  const handleWatchAdDoubleDaily = (reward: { coins: number; xp: number }) => {
-    setPendingDailyBonusAd(reward);
-    prepareAndShowInterstitialAd();
+  const handleWatchAdDoubleDaily = async (reward: { coins: number; xp: number }) => {
+    const res = await showRewardedAd();
+    if (res.rewarded) {
+      handleClaimDailyBonus(reward, true);
+      setShowDailyBonusModal(false);
+    } else {
+      if (res.error === 'not_available_on_web') {
+        setToastQueue((prev) => [
+          ...prev,
+          {
+            id: `ad_notice_${Date.now()}`,
+            type: 'achievement',
+            title: playerState.language === 'en' ? 'AdMob Notice' : 'Aviso AdMob',
+            description: playerState.language === 'en' ? 'Rewarded ads require native Android/iOS.' : 'Los anuncios recompensados están disponibles en la app móvil.',
+            icon: '📱',
+            rewardCoins: 0,
+            rewardXp: 0,
+          },
+        ]);
+      } else {
+        setToastQueue((prev) => [
+          ...prev,
+          {
+            id: `ad_incomplete_${Date.now()}`,
+            type: 'achievement',
+            title: playerState.language === 'en' ? 'Ad Cancelled' : 'Anuncio no completado',
+            description: playerState.language === 'en' ? 'Watch full video to double daily rewards.' : 'Debes ver el video completo para duplicar recompensa.',
+            icon: '⚠️',
+            rewardCoins: 0,
+            rewardXp: 0,
+          },
+        ]);
+      }
+    }
   };
 
   // Legacy shortcut for quests modal
@@ -1085,6 +1162,156 @@ export default function App() {
         rewardXp: reward.xp,
       },
     ]);
+  };
+
+  // Extra Lucky Spin via AdMob Rewarded SDK
+  const handleWatchAdForSpin = async () => {
+    const res = await showRewardedAd();
+    if (res.rewarded) {
+      soundManager.playCoin();
+      hapticManager.success();
+      localStorage.removeItem('star_tap_last_spin_date');
+      setToastQueue((prev) => [
+        ...prev,
+        {
+          id: `extra_spin_${Date.now()}`,
+          type: 'achievement',
+          title: playerState.language === 'en' ? 'Extra Spin Unlocked!' : '¡Giro Extra Desbloqueado!',
+          description: playerState.language === 'en' ? 'You can spin the Lucky Wheel again!' : '¡Ya puedes volver a girar la Ruleta Cósmica!',
+          icon: '🎡',
+          rewardCoins: 0,
+          rewardXp: 0,
+        },
+      ]);
+    } else {
+      if (res.error === 'not_available_on_web') {
+        setToastQueue((prev) => [
+          ...prev,
+          {
+            id: `ad_notice_${Date.now()}`,
+            type: 'achievement',
+            title: playerState.language === 'en' ? 'AdMob Notice' : 'Aviso AdMob',
+            description: playerState.language === 'en' ? 'Rewarded ads require native Android/iOS.' : 'Los anuncios recompensados están disponibles en la app móvil.',
+            icon: '📱',
+            rewardCoins: 0,
+            rewardXp: 0,
+          },
+        ]);
+      } else {
+        setToastQueue((prev) => [
+          ...prev,
+          {
+            id: `ad_incomplete_${Date.now()}`,
+            type: 'achievement',
+            title: playerState.language === 'en' ? 'Ad Cancelled' : 'Anuncio no completado',
+            description: playerState.language === 'en' ? 'Watch full video to get an extra spin.' : 'Mira el video completo para desbloquear un giro extra.',
+            icon: '⚠️',
+            rewardCoins: 0,
+            rewardXp: 0,
+          },
+        ]);
+      }
+    }
+  };
+
+  // Watch Rewarded Ad in Shop (+80 Coins)
+  const handleWatchShopAd = async () => {
+    const res = await showRewardedAd();
+    if (res.rewarded) {
+      soundManager.playCoin();
+      hapticManager.success();
+      setPlayerState((prev) => {
+        const nextCoins = prev.coins + 80;
+        const nextStats = {
+          ...prev.stats,
+          totalCoinsEarned: prev.stats.totalCoinsEarned + 80,
+        };
+        const newState = {
+          ...prev,
+          coins: nextCoins,
+          stats: nextStats,
+        };
+        savePlayerState(newState);
+        if (userId) savePlayerStateToCloud(userId, newState);
+        return newState;
+      });
+      setToastQueue((prev) => [
+        ...prev,
+        {
+          id: `shop_ad_${Date.now()}`,
+          type: 'achievement',
+          title: playerState.language === 'en' ? '+80 Coins Earned!' : '¡+80 Monedas Obtenidas!',
+          description: playerState.language === 'en' ? 'Reward claimed from AdMob video.' : 'Recompensa acreditada por ver el anuncio.',
+          icon: '🪙',
+          rewardCoins: 80,
+          rewardXp: 0,
+        },
+      ]);
+    } else {
+      if (res.error === 'not_available_on_web') {
+        setToastQueue((prev) => [
+          ...prev,
+          {
+            id: `ad_notice_${Date.now()}`,
+            type: 'achievement',
+            title: playerState.language === 'en' ? 'AdMob Notice' : 'Aviso AdMob',
+            description: playerState.language === 'en' ? 'Rewarded ads require native Android/iOS.' : 'Los anuncios recompensados están disponibles en la app móvil.',
+            icon: '📱',
+            rewardCoins: 0,
+            rewardXp: 0,
+          },
+        ]);
+      } else {
+        setToastQueue((prev) => [
+          ...prev,
+          {
+            id: `ad_incomplete_${Date.now()}`,
+            type: 'achievement',
+            title: playerState.language === 'en' ? 'Ad Cancelled' : 'Anuncio no completado',
+            description: playerState.language === 'en' ? 'Watch full video to get 80 free coins.' : 'Debes ver el video completo para recibir 80 monedas.',
+            icon: '⚠️',
+            rewardCoins: 0,
+            rewardXp: 0,
+          },
+        ]);
+      }
+    }
+  };
+
+  // Watch Ad to Revive during Game
+  const handleWatchAdForRevive = async (): Promise<boolean> => {
+    const res = await showRewardedAd();
+    if (res.rewarded) {
+      return true;
+    }
+    if (res.error === 'not_available_on_web') {
+      setToastQueue((prev) => [
+        ...prev,
+        {
+          id: `ad_notice_${Date.now()}`,
+          type: 'achievement',
+          title: playerState.language === 'en' ? 'AdMob Notice' : 'Aviso AdMob',
+          description: playerState.language === 'en' ? 'Rewarded ads require native Android/iOS.' : 'Los anuncios recompensados están disponibles en la app móvil.',
+          icon: '📱',
+          rewardCoins: 0,
+          rewardXp: 0,
+        },
+      ]);
+    } else {
+      setToastQueue((prev) => [
+        ...prev,
+        {
+          id: `ad_incomplete_${Date.now()}`,
+          type: 'achievement',
+          title: playerState.language === 'en' ? 'Ad Cancelled' : 'Anuncio no completado',
+          description: playerState.language === 'en' ? 'Watch full video to revive.' : 'Debes ver el video completo para revivir.',
+          icon: '⚠️',
+          rewardCoins: 0,
+          rewardXp: 0,
+        },
+      ]);
+    }
+    return false;
   };
 
   const handleSpendCoins = (amount: number) => {
@@ -1394,9 +1621,7 @@ export default function App() {
               })
             }
             onSpendCoins={handleSpendCoins}
-            onWatchAdForRevive={() => {
-              prepareAndShowInterstitialAd();
-            }}
+            onWatchAdForRevive={handleWatchAdForRevive}
             onSendEmote={handlePlayerSendEmote}
           />
         </main>
@@ -1436,31 +1661,11 @@ export default function App() {
           onClose={() => setActiveModal(null)}
           onBuyOrEquipItem={handleBuyOrEquipItem}
           onUpgradePowerup={handleUpgradePowerup}
-          onWatchAd={() => {
-            prepareAndShowInterstitialAd();
-            setShowShopRewardedAd(true);
-          }}
+          onWatchAd={handleWatchShopAd}
           onUpdatePlayerState={(newState) => {
             setPlayerState(newState);
             savePlayerState(newState);
             if (userId) savePlayerStateToCloud(userId, newState);
-          }}
-        />
-      )}
-
-      {showShopRewardedAd && (
-        <AdMobRewardedModal
-          bonusCoins={80}
-          language={playerState.language || 'es'}
-          onClose={() => setShowShopRewardedAd(false)}
-          onRewardEarned={() => {
-            setPlayerState((prev) => {
-              const newState = { ...prev, coins: prev.coins + 80 };
-              savePlayerState(newState);
-              if (userId) savePlayerStateToCloud(userId, newState);
-              return newState;
-            });
-            setShowShopRewardedAd(false);
           }}
         />
       )}
@@ -1611,39 +1816,8 @@ export default function App() {
           playerState={playerState}
           language={playerState.language}
           onSpinRewardEarned={handleLuckySpinReward}
-          onWatchAdForSpin={() => {
-            prepareAndShowInterstitialAd();
-            setPendingSpinAd(true);
-          }}
+          onWatchAdForSpin={handleWatchAdForSpin}
           onClose={() => setShowLuckySpinModal(false)}
-        />
-      )}
-
-      {/* AdMob Rewarded Ad for Lucky Spin */}
-      {pendingSpinAd && (
-        <AdMobRewardedModal
-          bonusCoins={200}
-          language={playerState.language || 'es'}
-          onClose={() => setPendingSpinAd(false)}
-          onRewardEarned={() => {
-            setPendingSpinAd(false);
-            // Allow another spin by clearing today's timestamp
-            localStorage.removeItem('star_tap_last_spin_date');
-          }}
-        />
-      )}
-
-      {/* AdMob Rewarded Ad for Doubling Daily Login Bonus (x2) */}
-      {pendingDailyBonusAd && (
-        <AdMobRewardedModal
-          bonusCoins={pendingDailyBonusAd.coins * 2}
-          language={playerState.language || 'es'}
-          onClose={() => setPendingDailyBonusAd(null)}
-          onRewardEarned={() => {
-            handleClaimDailyBonus(pendingDailyBonusAd, true);
-            setPendingDailyBonusAd(null);
-            setShowDailyBonusModal(false);
-          }}
         />
       )}
 

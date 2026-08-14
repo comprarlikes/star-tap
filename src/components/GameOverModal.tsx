@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { Trophy, Zap, Repeat, Sparkles, Check, Swords, Ghost, Tv, Home, Share2 } from 'lucide-react';
 import { t, Language } from '../i18n';
-import { AdMobRewardedModal } from './AdMobRewardedModal';
 import { soundManager } from '../services/sound';
+import { hapticManager } from '../services/haptics';
 
 interface GameOverModalProps {
   score: number;
@@ -91,7 +91,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   language = 'es',
 }) => {
   const lang: Language = language === 'en' ? 'en' : 'es';
-  const [showAdMobModal, setShowAdMobModal] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
   // Animated count-up numbers when modal mounts or values change
@@ -269,15 +268,16 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         {!hasDoubledCoins ? (
           <button
             type="button"
-            onClick={() => setShowAdMobModal(true)}
-            className="w-full mb-3 py-3 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:brightness-110 active:scale-95 text-white font-black text-xs rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 border border-pink-400/40 group relative overflow-hidden"
+            onClick={() => {
+              soundManager.playButtonClick();
+              hapticManager.light();
+              onDoubleCoins();
+            }}
+            className="w-full mb-3 py-3 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:brightness-110 active:scale-95 text-white font-black text-xs rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 border border-pink-400/40 group relative overflow-hidden cursor-pointer"
           >
             <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             <Tv className="w-4 h-4 fill-amber-300 text-slate-950 group-hover:scale-110 transition-transform" />
             <span className="tracking-wide uppercase">{t('doubleCoinsBtn', lang).replace('{coins}', coinsEarned.toString())}</span>
-            <span className="text-[9px] bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black uppercase tracking-wider ml-1 shadow">
-              AdMob
-            </span>
           </button>
         ) : (
           <div className="w-full mb-3 py-2.5 bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-bold text-xs rounded-2xl flex items-center justify-center gap-1.5 shadow-inner">
@@ -323,19 +323,6 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Google AdMob Rewarded Ad Modal */}
-      {showAdMobModal && (
-        <AdMobRewardedModal
-          bonusCoins={coinsEarned}
-          language={lang}
-          onRewardEarned={() => {
-            onDoubleCoins();
-            setShowAdMobModal(false);
-          }}
-          onClose={() => setShowAdMobModal(false)}
-        />
-      )}
     </div>
   );
 };
