@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { LeaderboardEntry, PlayerState } from '../types';
 import { soundManager } from '../services/sound';
+import { getAvatarById } from '../data/avatars';
+import { AnimatedAvatar } from './AnimatedAvatar';
 import { X, Trophy, Swords, Flame, Sparkles, Clock, Coins, Info, ShieldCheck, UserPlus, Users, Check } from 'lucide-react';
 import { t } from '../i18n';
 
@@ -260,8 +262,11 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         {activeTab === 'global' && (
           <div className="p-3.5 bg-gradient-to-r from-cyan-950/80 via-blue-950/80 to-slate-950/80 border-b border-cyan-500/30 flex items-center justify-between shadow-inner">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 font-black flex items-center justify-center text-xs shadow-md border border-amber-300">
-                L{playerState.level}
+              <div className="relative flex items-center justify-center">
+                <AnimatedAvatar avatarId={playerState.avatar} size="sm" showBadge={false} />
+                <span className="absolute -bottom-1 -right-1 bg-slate-950 text-amber-300 font-black text-[9px] px-1 py-0 rounded-full border border-amber-400 shadow z-20">
+                  L{playerState.level}
+                </span>
               </div>
               <div className="flex flex-col text-left">
                 <span className="font-extrabold text-sm text-amber-300">{playerState.name} (Tú)</span>
@@ -284,6 +289,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
             tournamentEntries.map((entry) => {
               const isTop3 = entry.rank <= 3;
               const hasPrize = entry.estimatedCoins > 0;
+              const entryAvatar = entry.isUser ? getAvatarById(playerState.avatar) : getAvatarById(entry.avatar);
 
               return (
                 <div
@@ -299,7 +305,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   <div className="flex items-center gap-3">
                     {/* Rank Badge */}
                     <div className="w-7 flex justify-center">
-                      {entry.rank === 1 && <span className="text-2xl animate-pulse">👑</span>}
+                      {entry.rank === 1 && <span className="text-2xl animate-avatar-pulse">👑</span>}
                       {entry.rank === 2 && <span className="text-2xl">🥈</span>}
                       {entry.rank === 3 && <span className="text-2xl">🥉</span>}
                       {entry.rank > 3 && (
@@ -307,8 +313,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       )}
                     </div>
 
-                    <div className="w-9 h-9 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-lg shadow-sm">
-                      {entry.avatar}
+                    <div className="relative shrink-0 flex items-center justify-center">
+                      <AnimatedAvatar avatarItem={entryAvatar} size="sm" showBadge={false} />
                     </div>
 
                     <div className="flex flex-col text-left">
@@ -382,13 +388,14 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
             sortedGlobal.map((entry, index) => {
               const rank = index + 1;
               const isTop3 = rank <= 3;
+              const entryAvatar = entry.isUser ? getAvatarById(playerState.avatar) : getAvatarById(entry.avatar);
 
               return (
                 <div
                   key={entry.id}
                   className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 shadow-sm ${
                     entry.isUser
-                      ? 'bg-amber-500/15 border-amber-500/40 shadow-md'
+                      ? 'bg-amber-500/15 border-amber-500/40 shadow-md ring-1 ring-amber-400/20'
                       : isTop3
                       ? 'bg-slate-950/70 border-slate-800'
                       : 'bg-slate-950/40 border-slate-850'
@@ -397,7 +404,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   <div className="flex items-center gap-3">
                     {/* Rank Badge */}
                     <div className="w-7 flex justify-center">
-                      {rank === 1 && <span className="text-2xl">🥇</span>}
+                      {rank === 1 && <span className="text-2xl animate-avatar-pulse">🥇</span>}
                       {rank === 2 && <span className="text-2xl">🥈</span>}
                       {rank === 3 && <span className="text-2xl">🥉</span>}
                       {rank > 3 && (
@@ -405,8 +412,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       )}
                     </div>
 
-                    <div className="w-9 h-9 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-lg">
-                      {entry.avatar}
+                    <div className="relative shrink-0 flex items-center justify-center">
+                      <AnimatedAvatar avatarItem={entryAvatar} size="sm" showBadge={false} />
                     </div>
 
                     <div className="flex flex-col text-left">

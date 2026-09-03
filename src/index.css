@@ -28,6 +28,10 @@
   background: rgba(100, 116, 139, 1);
 }
 
+/* =========================================================================
+   UI Transitions & Micro-Interactions
+   ========================================================================= */
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -61,3 +65,1007 @@
 .animate-slide-down-toast {
   animation: slideDownToast 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
+
+@keyframes shimmerEffect {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmerEffect 2.5s infinite;
+}
+
+/* In-Game Camera, Star FX & Board Animations */
+@keyframes screenShake {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-3px, 2px); }
+  40% { transform: translate(3px, -2px); }
+  60% { transform: translate(-2px, -1px); }
+  80% { transform: translate(2px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+.animate-screen-shake {
+  animation: screenShake 0.25s ease-in-out;
+}
+
+@keyframes starFloatPulse {
+  0% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1.05);
+  }
+}
+
+.animate-star-pulse {
+  animation: starFloatPulse 0.6s ease-in-out infinite alternate;
+}
+
+/* =========================================================================
+   EXCLUSIVE ANIMATED AVATARS: PREMIUM KEYFRAME ANIMATIONS & CLASSES
+   ========================================================================= */
+
+/* 1. Deep Harmonic Glow Pulse (Profile & Leaderboard Hero Aura) */
+@keyframes avatarPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.75;
+    filter: drop-shadow(0 0 10px currentColor);
+  }
+  50% {
+    transform: scale(1.16);
+    opacity: 1;
+    filter: drop-shadow(0 0 24px currentColor);
+  }
+}
+
+.animate-avatar-pulse {
+  animation: avatarPulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 2. Smooth 360° Planetary / Hologram Ring Rotation */
+@keyframes avatarRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-avatar-rotate {
+  animation: avatarRotate 8s linear infinite;
+}
+
+.animate-avatar-rotate-slow {
+  animation: avatarRotate 14s linear infinite;
+}
+
+.animate-avatar-rotate-fast {
+  animation: avatarRotate 4s linear infinite;
+}
+
+/* 3. Counter-Clockwise Vortex Rotation (Void Portal / Shadow Spectre) */
+@keyframes avatarRotateReverse {
+  0% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-avatar-rotate-reverse {
+  animation: avatarRotateReverse 7s linear infinite;
+}
+
+/* 4. Cybernetic Heartbeat Pulse with High-Tech Glitch Flashes */
+@keyframes avatarCyberPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 12px rgba(6, 182, 212, 0.4), inset 0 0 8px rgba(6, 182, 212, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 24px rgba(6, 182, 212, 0.9), inset 0 0 16px rgba(6, 182, 212, 0.6);
+  }
+}
+
+.animate-avatar-cyber-pulse {
+  animation: avatarCyberPulse 1.8s ease-in-out infinite;
+}
+
+/* 5. Solar Corona Flare & Radiance Rays */
+@keyframes avatarSolarCorona {
+  0% {
+    transform: rotate(0deg) scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    opacity: 0.8;
+  }
+}
+
+.animate-avatar-solar-corona {
+  animation: avatarSolarCorona 10s ease-in-out infinite;
+}
+
+/* 6. Dynamic Cosmic Fire & Flame Flicker */
+@keyframes avatarFlameFlicker {
+  0%, 100% {
+    transform: translateY(0) scaleY(1) scaleX(1);
+    filter: drop-shadow(0 -4px 12px rgba(249, 115, 22, 0.7));
+  }
+  25% {
+    transform: translateY(-2px) scaleY(1.06) scaleX(0.98);
+    filter: drop-shadow(0 -6px 18px rgba(234, 88, 12, 0.9));
+  }
+  50% {
+    transform: translateY(-1px) scaleY(0.97) scaleX(1.03);
+    filter: drop-shadow(0 -3px 10px rgba(249, 115, 22, 0.6));
+  }
+  75% {
+    transform: translateY(-3px) scaleY(1.08) scaleX(0.96);
+    filter: drop-shadow(0 -7px 22px rgba(251, 146, 60, 1));
+  }
+}
+
+.animate-avatar-flame {
+  animation: avatarFlameFlicker 1.4s ease-in-out infinite;
+}
+
+/* 7. Hyper-Electrostatic Discharge / Lightning Arc */
+@keyframes avatarLightningFlash {
+  0%, 100% {
+    opacity: 0.7;
+    filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.6));
+  }
+  10% {
+    opacity: 1;
+    filter: drop-shadow(0 0 20px rgba(147, 197, 253, 1));
+  }
+  15% {
+    opacity: 0.6;
+    filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.4));
+  }
+  30% {
+    opacity: 0.95;
+    filter: drop-shadow(0 0 16px rgba(191, 219, 254, 0.9));
+  }
+  70% {
+    opacity: 0.75;
+    filter: drop-shadow(0 0 10px rgba(96, 165, 250, 0.7));
+  }
+}
+
+.animate-avatar-lightning {
+  animation: avatarLightningFlash 1.6s ease-in-out infinite;
+}
+
+/* 8. Dimensional Spectral Glitch & Chromatic Shift */
+@keyframes avatarGlitchShift {
+  0%, 100% {
+    transform: translate(0, 0);
+    filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.6));
+  }
+  20% {
+    transform: translate(-1.5px, 1px);
+    filter: drop-shadow(-2px 0 8px rgba(236, 72, 153, 0.8));
+  }
+  40% {
+    transform: translate(1.5px, -1px);
+    filter: drop-shadow(2px 0 8px rgba(6, 182, 212, 0.8));
+  }
+  60% {
+    transform: translate(-1px, -1px);
+    filter: drop-shadow(0 -2px 10px rgba(168, 85, 247, 0.9));
+  }
+  80% {
+    transform: translate(1px, 1px);
+    filter: drop-shadow(0 2px 10px rgba(244, 63, 94, 0.8));
+  }
+}
+
+.animate-avatar-glitch {
+  animation: avatarGlitchShift 2.2s steps(2, jump-none) infinite;
+}
+
+/* 9. Concentric Ripple Shockwave Ring Expand */
+@keyframes avatarRingPulse {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.28);
+    opacity: 0;
+  }
+}
+
+.animate-avatar-ring-pulse {
+  animation: avatarRingPulse 2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+/* 10. Subtle Weightless Levitation (Profile & Top Ranks Showcase) */
+@keyframes floatAvatar {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(1deg);
+  }
+}
+
+.animate-float-avatar,
+.animate-avatar-float {
+  animation: floatAvatar 3s ease-in-out infinite;
+}
+
+/* 11. Leaderboard & Profile Luxury Diagonal Sweep Shimmer */
+@keyframes avatarLeaderboardShine {
+  0% {
+    transform: translateX(-150%) skewX(-20deg);
+  }
+  30%, 100% {
+    transform: translateX(250%) skewX(-20deg);
+  }
+}
+
+.animate-avatar-leaderboard-shine {
+  animation: avatarLeaderboardShine 3.5s ease-in-out infinite;
+}
+
+/* 12. Cinematic VS Showdown Entrance Animations */
+@keyframes slideInLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-120px) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(10px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInRight {
+  0% {
+    opacity: 0;
+    transform: translateX(120px) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(-10px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scaleUp {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-10deg);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.15) rotate(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* 13. AAA Cinematic VS Showdown FX */
+@keyframes screenRumble {
+  0% { transform: translate(0, 0) scale(1); }
+  15% { transform: translate(-3px, 2px) scale(1.008); }
+  30% { transform: translate(3px, -2px) scale(1.006); }
+  45% { transform: translate(-2px, -2px) scale(1.004); }
+  60% { transform: translate(2px, 1px) scale(1.002); }
+  75% { transform: translate(-1px, 1px) scale(1.001); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+.animate-screen-rumble {
+  animation: screenRumble 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes cardShineSweep {
+  0% {
+    transform: translateX(-200%) translateY(-100%) rotate(35deg);
+  }
+  30%, 100% {
+    transform: translateX(300%) translateY(200%) rotate(35deg);
+  }
+}
+
+.animate-card-shine {
+  animation: cardShineSweep 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes flarePulse {
+  0%, 100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+.animate-flare-pulse {
+  animation: flarePulse 1.8s ease-in-out infinite;
+}
+
+@keyframes tacticalRadarScan {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-radar-scan {
+  animation: tacticalRadarScan 3s linear infinite;
+}
+
+@keyframes energyDividerGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.6), 0 0 35px rgba(236, 72, 153, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.9), 0 0 60px rgba(236, 72, 153, 0.8);
+  }
+}
+
+.animate-energy-divider {
+  animation: energyDividerGlow 1.5s ease-in-out infinite;
+}
+
+/* 14. AAA Mobile Game Floating Shortcut Widgets */
+@keyframes floatWidgetA {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(1deg); }
+}
+
+@keyframes floatWidgetB {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(-1.2deg); }
+}
+
+@keyframes floatWidgetC {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(0.8deg); }
+}
+
+.animate-float-widget-a {
+  animation: floatWidgetA 3.2s ease-in-out infinite;
+}
+
+.animate-float-widget-b {
+  animation: floatWidgetB 3.8s ease-in-out infinite;
+}
+
+.animate-float-widget-c {
+  animation: floatWidgetC 3.5s ease-in-out infinite;
+}
+
+@keyframes neonRingPulse {
+  0%, 100% {
+    box-shadow: 0 0 12px currentColor, inset 0 0 8px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 24px currentColor, inset 0 0 14px currentColor;
+  }
+}
+
+.animate-neon-pulse {
+  animation: neonRingPulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePingPro {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+}
+
+.animate-badge-ping-pro {
+  animation: badgePingPro 1.5s ease-in-out infinite;
+}
+
+/* =========================================================================
+   RESPONSIVE UTILITIES, SAFE AREAS & DEVICE ADAPTABILITY
+   ========================================================================= */
+
+/* Hide scrollbars while retaining scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Hardware accelerated touch handling & smooth scrolling */
+html, body {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+  min-height: 100%;
+}
+
+/* Safe area padding utilities for notched/curved devices */
+.safe-pb {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.safe-pt {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+.safe-pl {
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+}
+
+.safe-pr {
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+}
+
+/* =========================================================================
+   3D ROTATING CHARACTER SKIN INSPECTOR & PREVIEW ANIMATIONS
+   ========================================================================= */
+
+.perspective-1000 {
+  perspective: 1000px;
+  -webkit-perspective: 1000px;
+}
+
+.perspective-1400 {
+  perspective: 1400px;
+  -webkit-perspective: 1400px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+@keyframes rotate3dSlow {
+  0% {
+    transform: rotateY(0deg) rotateX(8deg);
+  }
+  50% {
+    transform: rotateY(180deg) rotateX(-6deg);
+  }
+  100% {
+    transform: rotateY(360deg) rotateX(8deg);
+  }
+}
+
+.animate-rotate-3d-slow {
+  animation: rotate3dSlow 9s cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite;
+}
+
+@keyframes orbit3dRingA {
+  0% {
+    transform: rotateX(72deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(72deg) rotateZ(360deg);
+  }
+}
+
+.animate-orbit-3d-a {
+  animation: orbit3dRingA 7s linear infinite;
+}
+
+@keyframes orbit3dRingB {
+  0% {
+    transform: rotateX(72deg) rotateZ(360deg);
+  }
+  100% {
+    transform: rotateX(72deg) rotateZ(0deg);
+  }
+}
+
+.animate-orbit-3d-b {
+  animation: orbit3dRingB 11s linear infinite;
+}
+
+@keyframes holoBeamGlow {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scaleX(0.85);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scaleX(1.15);
+  }
+}
+
+.animate-holo-beam {
+  animation: holoBeamGlow 2.5s ease-in-out infinite;
+}
+
+@keyframes pedestalFloorPulse {
+  0%, 100% {
+    transform: scale(0.95);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.95;
+  }
+}
+
+.animate-pedestal-pulse {
+  animation: pedestalFloorPulse 3s ease-in-out infinite;
+}
+
+/* =========================================================================
+   TRIPLE-A (AAA) CYBER-COSMIC VISUAL ENGINE STYLES
+   ========================================================================= */
+
+/* 1. Holographic Scanline Overlay */
+.aaa-scanlines {
+  background: linear-gradient(
+    rgba(18, 16, 38, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+/* 2. Cyber-Cosmic Perspective Grid */
+.aaa-cyber-grid {
+  background-image: 
+    linear-gradient(to right, rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(168, 85, 247, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* 3. AAA Frosted Cyber-Glass Panels */
+.aaa-glass-cyber {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(2, 6, 23, 0.95) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 20px 40px -15px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.aaa-glass-cyber-gold {
+  background: linear-gradient(145deg, rgba(30, 20, 5, 0.9) 0%, rgba(10, 8, 5, 0.96) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 
+    0 15px 35px -10px rgba(245, 158, 11, 0.25),
+    inset 0 1px 0 rgba(253, 230, 138, 0.3),
+    inset 0 0 15px rgba(245, 158, 11, 0.1);
+}
+
+.aaa-glass-cyber-purple {
+  background: linear-gradient(145deg, rgba(25, 10, 40, 0.9) 0%, rgba(8, 4, 18, 0.96) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  box-shadow: 
+    0 15px 35px -10px rgba(168, 85, 247, 0.3),
+    inset 0 1px 0 rgba(233, 213, 255, 0.3),
+    inset 0 0 15px rgba(168, 85, 247, 0.12);
+}
+
+.aaa-glass-cyber-cyan {
+  background: linear-gradient(145deg, rgba(8, 28, 45, 0.9) 0%, rgba(3, 10, 20, 0.96) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  box-shadow: 
+    0 15px 35px -10px rgba(6, 182, 212, 0.25),
+    inset 0 1px 0 rgba(165, 243, 252, 0.3),
+    inset 0 0 15px rgba(6, 182, 212, 0.1);
+}
+
+/* 4. AAA Specular Metallic Push Buttons */
+.aaa-btn-gold {
+  background: linear-gradient(180deg, #fef08a 0%, #f59e0b 50%, #d97706 100%);
+  color: #0f172a;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: 
+    0 6px 0 #b45309,
+    0 12px 20px rgba(245, 158, 11, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aaa-btn-gold:hover {
+  filter: brightness(1.08);
+  box-shadow: 
+    0 6px 0 #b45309,
+    0 16px 28px rgba(245, 158, 11, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.aaa-btn-gold:active {
+  transform: translateY(4px);
+  box-shadow: 
+    0 2px 0 #b45309,
+    0 4px 10px rgba(245, 158, 11, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.aaa-btn-purple {
+  background: linear-gradient(180deg, #e879f9 0%, #c026d3 50%, #9333ea 100%);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  box-shadow: 
+    0 6px 0 #6b21a8,
+    0 12px 20px rgba(192, 38, 211, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aaa-btn-purple:hover {
+  filter: brightness(1.08);
+  box-shadow: 
+    0 6px 0 #6b21a8,
+    0 16px 28px rgba(192, 38, 211, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.aaa-btn-purple:active {
+  transform: translateY(4px);
+  box-shadow: 
+    0 2px 0 #6b21a8,
+    0 4px 10px rgba(192, 38, 211, 0.3);
+}
+
+.aaa-btn-cyan {
+  background: linear-gradient(180deg, #67e8f9 0%, #06b6d4 50%, #0284c7 100%);
+  color: #042f2e;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 
+    0 6px 0 #0369a1,
+    0 12px 20px rgba(6, 182, 212, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aaa-btn-cyan:hover {
+  filter: brightness(1.08);
+  box-shadow: 
+    0 6px 0 #0369a1,
+    0 16px 28px rgba(6, 182, 212, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.aaa-btn-cyan:active {
+  transform: translateY(4px);
+  box-shadow: 
+    0 2px 0 #0369a1,
+    0 4px 10px rgba(6, 182, 212, 0.3);
+}
+
+/* 5. AAA HUD Telemetry & Corner Brackets */
+.aaa-hud-corner-tl {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+  pointer-events: none;
+}
+
+.aaa-hud-corner-tr {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  pointer-events: none;
+}
+
+.aaa-hud-corner-bl {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  width: 10px;
+  height: 10px;
+  border-bottom: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+  pointer-events: none;
+}
+
+.aaa-hud-corner-br {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  border-bottom: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  pointer-events: none;
+}
+
+/* 6. Dynamic Energy Flare Animation */
+@keyframes energyPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.4), inset 0 0 10px rgba(245, 158, 11, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(245, 158, 11, 0.8), inset 0 0 20px rgba(245, 158, 11, 0.4);
+  }
+}
+
+.animate-energy-pulse {
+  animation: energyPulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes holographicScan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(1000%);
+  }
+}
+
+@keyframes popIn3D {
+  0% {
+    transform: perspective(900px) translateY(-60px) rotateX(-28deg) scale(0.65);
+    opacity: 0;
+    filter: brightness(2.2);
+  }
+  50% {
+    transform: perspective(900px) translateY(8px) rotateX(6deg) scale(1.05);
+    opacity: 1;
+    filter: brightness(1.4);
+  }
+  75% {
+    transform: perspective(900px) translateY(-3px) rotateX(-2deg) scale(0.99);
+  }
+  100% {
+    transform: perspective(900px) translateY(0) rotateX(0deg) scale(1);
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+.animate-pop-in-3d {
+  animation: popIn3D 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  transform-style: preserve-3d;
+}
+
+@keyframes sunburstRotate {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) rotate(180deg) scale(1.18);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg) scale(1);
+  }
+}
+
+.animate-sunburst-rotate {
+  animation: sunburstRotate 14s linear infinite;
+}
+
+@keyframes goldenSheenSweep {
+  0% {
+    transform: translateX(-150%) skewX(-25deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.95;
+  }
+  65% {
+    transform: translateX(260%) skewX(-25deg);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateX(260%) skewX(-25deg);
+    opacity: 0;
+  }
+}
+
+.animate-golden-sheen {
+  animation: goldenSheenSweep 3s ease-in-out infinite;
+}
+
+@keyframes trophyGlowPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.6)) drop-shadow(0 0 22px rgba(250, 204, 21, 0.4));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 25px rgba(245, 158, 11, 0.95)) drop-shadow(0 0 45px rgba(250, 204, 21, 0.8));
+    transform: scale(1.06);
+  }
+}
+
+.animate-trophy-pulse {
+  animation: trophyGlowPulse 2.2s ease-in-out infinite;
+}
+
+/* 7. AAA Emerald & Rose metallic buttons */
+.aaa-btn-emerald {
+  background: linear-gradient(180deg, #6ee7b7 0%, #10b981 50%, #059669 100%);
+  color: #022c22;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 
+    0 6px 0 #047857,
+    0 12px 20px rgba(16, 185, 129, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aaa-btn-emerald:hover {
+  filter: brightness(1.08);
+  box-shadow: 
+    0 6px 0 #047857,
+    0 16px 28px rgba(16, 185, 129, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.aaa-btn-emerald:active {
+  transform: translateY(4px);
+  box-shadow: 
+    0 2px 0 #047857,
+    0 4px 10px rgba(16, 185, 129, 0.3);
+}
+
+.aaa-btn-rose {
+  background: linear-gradient(180deg, #fda4af 0%, #f43f5e 50%, #e11d48 100%);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  box-shadow: 
+    0 6px 0 #9f1239,
+    0 12px 20px rgba(244, 63, 94, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aaa-btn-rose:hover {
+  filter: brightness(1.08);
+  box-shadow: 
+    0 6px 0 #9f1239,
+    0 16px 28px rgba(244, 63, 94, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.aaa-btn-rose:active {
+  transform: translateY(4px);
+  box-shadow: 
+    0 2px 0 #9f1239,
+    0 4px 10px rgba(244, 63, 94, 0.3);
+}
+
+/* 8. Star Visual FX */
+@keyframes starOrbitSpin {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.08);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.animate-star-orbit {
+  animation: starOrbitSpin 6s linear infinite;
+}
+
+@keyframes bombHazardFlash {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.6), inset 0 0 8px rgba(239, 68, 68, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(239, 68, 68, 0.95), inset 0 0 14px rgba(239, 68, 68, 0.8);
+    transform: scale(1.08);
+  }
+}
+
+.animate-bomb-hazard {
+  animation: bombHazardFlash 0.75s ease-in-out infinite;
+}
+
+@keyframes dangerVignettePulse {
+  0%, 100% {
+    box-shadow: inset 0 0 35px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: inset 0 0 85px rgba(239, 68, 68, 0.8);
+  }
+}
+
+.animate-danger-vignette {
+  animation: dangerVignettePulse 1s ease-in-out infinite;
+}
+
+@keyframes comboMegaPulse {
+  0% {
+    transform: scale(0.92) perspective(600px) rotateX(10deg);
+    filter: brightness(1.6);
+  }
+  50% {
+    transform: scale(1.08) perspective(600px) rotateX(-5deg);
+    filter: brightness(1.2);
+  }
+  100% {
+    transform: scale(1) perspective(600px) rotateX(0deg);
+    filter: brightness(1);
+  }
+}
+
+.animate-combo-mega {
+  animation: comboMegaPulse 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+

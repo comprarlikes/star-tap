@@ -213,6 +213,20 @@ export const translations = {
     tutorialSkipBtn: 'Omitir Guía',
     tutorialStartGameBtn: '🚀 ¡EMPEZAR MI PRIMERA PARTIDA!',
     tutorialReplayBtn: 'Ver Tutorial 💡',
+
+    // App Version & Update Manager
+    appUpdatesTitle: 'ACTUALIZACIÓN & VERSIÓN DE LA APP',
+    currentVersionLabel: 'Versión Instalada',
+    checkForUpdatesBtn: 'Buscar Actualizaciones',
+    checkingUpdates: 'Comprobando servidores...',
+    upToDateMsg: '¡Tienes la versión más reciente instalada!',
+    updateAvailableBadge: '¡Nueva versión disponible!',
+    updateRequiredBadge: '⚠️ Actualización Requerida',
+    viewUpdateBtn: 'Ver Actualización',
+    simulateUpdateLabel: 'Simular Estado de Actualización (Pruebas)',
+    simulateNone: 'Normal',
+    simulateOptional: 'Opcional (v2.5.0)',
+    simulateMandatory: 'Obligatoria (v3.0.0)',
   },
   en: {
     // Header HUD & Nav
@@ -426,6 +440,20 @@ export const translations = {
     tutorialSkipBtn: 'Skip Tour',
     tutorialStartGameBtn: '🚀 START MY FIRST GAME!',
     tutorialReplayBtn: 'Replay Tour 💡',
+
+    // App Version & Update Manager
+    appUpdatesTitle: 'APP UPDATES & VERSION',
+    currentVersionLabel: 'Installed Version',
+    checkForUpdatesBtn: 'Check for Updates',
+    checkingUpdates: 'Checking servers...',
+    upToDateMsg: 'You already have the latest version installed!',
+    updateAvailableBadge: 'New version available!',
+    updateRequiredBadge: '⚠️ Mandatory Update Required',
+    viewUpdateBtn: 'View Update',
+    simulateUpdateLabel: 'Simulate Update State (Testing)',
+    simulateNone: 'Normal',
+    simulateOptional: 'Optional (v2.5.0)',
+    simulateMandatory: 'Mandatory (v3.0.0)',
   },
 };
 

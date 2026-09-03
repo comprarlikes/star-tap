@@ -1,23 +1,23 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Trophy, Swords, Zap, Flame, Shield, Sparkles, FastForward, Radio, Coins } from 'lucide-react';
-import { PlayerState, MultiplayerArena, MultiplayerOpponent } from '../types';
+import { Trophy, Swords, Zap, Flame, Shield, Sparkles, FastForward, Flag, Target, Crosshair, Radio } from 'lucide-react';
+import { PlayerState, GhostRival } from '../types';
 import { getAvatarById } from '../data/avatars';
 import { AnimatedAvatar } from './AnimatedAvatar';
 import { soundManager } from '../services/sound';
 import { hapticManager } from '../services/haptics';
 
-interface MultiplayerVersusShowdownProps {
+interface DuelVersusShowdownProps {
   playerState: PlayerState;
-  opponent: MultiplayerOpponent;
-  arena: MultiplayerArena;
+  rival: GhostRival;
+  isFriend?: boolean;
   language?: 'es' | 'en';
   onIntroComplete: () => void;
 }
 
-export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps> = ({
+export const DuelVersusShowdown: React.FC<DuelVersusShowdownProps> = ({
   playerState,
-  opponent,
-  arena,
+  rival,
+  isFriend = false,
   language = 'es',
   onIntroComplete,
 }) => {
@@ -86,8 +86,9 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
       color: string;
     }> = [];
 
-    const starColors = ['#38bdf8', '#818cf8', '#ec4899', '#fbbf24', '#ffffff', '#a855f7'];
-    for (let i = 0; i < 65; i++) {
+    const starColors = ['#38bdf8', '#818cf8', '#f43f5e', '#fbbf24', '#ffffff', '#c084fc'];
+    const numStars = 65;
+    for (let i = 0; i < numStars; i++) {
       warpStars.push({
         x: (Math.random() - 0.5) * width * 1.5,
         y: (Math.random() - 0.5) * height * 1.5,
@@ -110,7 +111,7 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
       maxLife: number;
     }> = [];
 
-    const sparkColors = ['#f59e0b', '#fbbf24', '#ec4899', '#38bdf8', '#ffffff'];
+    const sparkColors = ['#f59e0b', '#fbbf24', '#f43f5e', '#38bdf8', '#ffffff'];
     for (let i = 0; i < 75; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = Math.random() * 7 + 2;
@@ -183,12 +184,14 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
 
       lightningArcs.push({
         points,
-        color: Math.random() > 0.5 ? '#38bdf8' : '#ec4899',
+        color: Math.random() > 0.5 ? '#38bdf8' : '#f59e0b',
         alpha: 1.0,
       });
     };
 
-    const render = () => {
+    let startTime = performance.now();
+
+    const render = (time: number) => {
       ctx.clearRect(0, 0, width, height);
       const cx = width / 2;
       const cy = height / 2;
@@ -277,8 +280,8 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
       sparks.forEach((s) => {
         s.x += s.vx;
         s.y += s.vy;
-        s.vy += 0.08;
-        s.vx *= 0.98;
+        s.vy += 0.08; // subtle gravity
+        s.vx *= 0.98; // air drag
         s.life++;
 
         if (s.life > s.maxLife || s.x < 0 || s.x > width || s.y > height) {
@@ -309,8 +312,8 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
       grad.addColorStop(0, 'rgba(56, 189, 248, 0)');
       grad.addColorStop(0.3, 'rgba(56, 189, 248, 0.4)');
       grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.9)');
-      grad.addColorStop(0.7, 'rgba(236, 72, 153, 0.4)');
-      grad.addColorStop(1, 'rgba(236, 72, 153, 0)');
+      grad.addColorStop(0.7, 'rgba(244, 63, 94, 0.4)');
+      grad.addColorStop(1, 'rgba(244, 63, 94, 0)');
 
       ctx.fillStyle = grad;
       ctx.fillRect(cx - 300, cy - 1.5, 600, 3);
@@ -375,30 +378,30 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
     };
   }, [onIntroComplete]);
 
-  // Find avatar item or fallback for opponent
-  const opponentAvatarItem = getAvatarById(opponent.avatar);
+  // Find avatar item or fallback for rival
+  const rivalAvatarItem = getAvatarById(rival.avatar);
 
   // Power Ratio calculation for dynamic telemetry bar
-  const playerTrophies = Math.max(playerState.trophies || 10, 10);
-  const opponentTrophies = Math.max(opponent.trophies || 10, 10);
-  const totalPower = playerTrophies + opponentTrophies;
-  const playerPowerPercent = Math.round((playerTrophies / totalPower) * 100);
-  const opponentPowerPercent = 100 - playerPowerPercent;
+  const playerScore = Math.max(playerState.stats.highestScore || 100, 100);
+  const rivalScore = Math.max(rival.score || 100, 100);
+  const totalPower = playerScore + rivalScore;
+  const playerPowerPercent = Math.round((playerScore / totalPower) * 100);
+  const rivalPowerPercent = 100 - playerPowerPercent;
 
   // Dynamic tips for countdown screen
-  const battleTips = isEn
+  const duelTips = isEn
     ? [
-        'Out-combo your live opponent to send hindrance obstacles!',
-        'Consecutive slices fill your ultimate Supernova meter faster!',
-        'Maintain your momentum to stay ahead on the live battle HUD!',
+        'Build 4+ slice combos to trigger Cosmic Fever!',
+        'Avoid hazardous space bombs to maintain your multiplier!',
+        'Slice rainbow stars for instant high-score power surges!',
       ]
     : [
-        '¡Encadena combos para enviar obstáculos a la pantalla rival!',
-        '¡Los cortes limpios llenan tu medidor de Supernova más rápido!',
-        '¡Mantén el ritmo para liderar el marcador en tiempo real!',
+        '¡Encadena combos de 4+ para activar la Fiebre Cósmica!',
+        '¡Evita las bombas estelares para proteger tu multiplicador!',
+        '¡Corta estrellas arcoíris para obtener ráfagas de puntuación!',
       ];
 
-  const currentTip = battleTips[count % battleTips.length];
+  const currentTip = duelTips[count % duelTips.length];
 
   return (
     <div
@@ -419,35 +422,32 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
         <div className="w-1/2 h-full bg-gradient-to-br from-cyan-950/80 via-blue-950/40 to-transparent relative">
           <div className="absolute inset-0 bg-[radial-gradient(#06b6d4_1px,transparent_1px)] [background-size:24px_24px] opacity-15" />
         </div>
-        <div className="w-1/2 h-full bg-gradient-to-bl from-pink-950/80 via-purple-950/40 to-transparent relative">
-          <div className="absolute inset-0 bg-[radial-gradient(#ec4899_1px,transparent_1px)] [background-size:24px_24px] opacity-15" />
+        <div className="w-1/2 h-full bg-gradient-to-bl from-rose-950/80 via-purple-950/40 to-transparent relative">
+          <div className="absolute inset-0 bg-[radial-gradient(#f43f5e_1px,transparent_1px)] [background-size:24px_24px] opacity-15" />
         </div>
       </div>
 
       {/* 4. Diagonal Energy Seam Divider */}
-      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 bg-gradient-to-b from-cyan-400 via-amber-300 to-pink-500 pointer-events-none z-[2] animate-energy-divider opacity-70 hidden md:block" />
+      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 bg-gradient-to-b from-cyan-400 via-amber-300 to-rose-500 pointer-events-none z-[2] animate-energy-divider opacity-70 hidden md:block" />
 
       {/* =========================================================================
           TOP ANAMORPHIC CINEMATIC LETTERBOX BAR
           ========================================================================= */}
       <div className="relative z-30 w-full px-4 sm:px-8 pt-3 pb-3 bg-gradient-to-b from-slate-950 via-slate-950/90 to-transparent border-b border-slate-800/80 flex items-center justify-between backdrop-blur-md">
-        {/* Arena Badge Indicator */}
+        {/* Match Tier & Mode Indicator */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3.5 py-1 rounded-md bg-slate-900/90 border border-purple-500/50 shadow-inner">
-            <span className="text-sm">{arena.icon}</span>
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-900/90 border border-purple-500/40 shadow-inner">
+            <Radio className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
             <span className="text-[10px] sm:text-xs font-black tracking-wider text-purple-200 uppercase">
-              {isEn ? arena.nameEn : arena.name}
-            </span>
-            <span className="text-slate-600">•</span>
-            <span className="text-amber-300 font-bold text-[10px] sm:text-xs flex items-center gap-1">
-              <Coins className="w-3 h-3 text-amber-400" />
-              {arena.prizeCoins} 🪙
+              {isFriend
+                ? (isEn ? 'FRIEND 1v1 DIRECT CLASH' : 'DESAFÍO DIRECTO CON AMIGO')
+                : (isEn ? 'GHOST RIVAL DUEL // TIER I' : 'DUELO 1v1 // RIVAL FANTASMA')}
             </span>
           </div>
 
           <div className="hidden sm:flex items-center gap-2 text-[10px] font-mono text-slate-400">
-            <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span>LIVE 1v1 NETPLAY // TICKRATE 60</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span>SYNC: 60 FPS // LOW LATENCY</span>
           </div>
         </div>
 
@@ -486,11 +486,11 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
                 <div className="flex items-center justify-between mb-3">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 font-black text-[10px] uppercase tracking-widest">
                     <Sparkles className="w-3 h-3 text-cyan-400" />
-                    <span>{isEn ? 'YOU (PLAYER)' : 'TÚ (JUGADOR)'}</span>
+                    <span>{isEn ? 'YOU (CHALLENGER)' : 'TÚ (DESAFIANTE)'}</span>
                   </span>
 
                   <span className="text-[10px] font-mono font-bold text-cyan-400/80">
-                    🏆 {playerState.trophies || 0}
+                    ID #{playerState.name.slice(0, 4).toUpperCase()}
                   </span>
                 </div>
 
@@ -517,13 +517,13 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
                     <div className="mt-1.5 space-y-1">
                       <div className="flex items-center gap-1.5 text-xs font-black text-amber-300">
                         <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span className="truncate">{playerState.trophies || 0} {isEn ? 'Trophies' : 'Copas'}</span>
+                        <span className="truncate">{playerState.stats.highestScore.toLocaleString()} pts</span>
                       </div>
 
-                      {playerState.stats.multiplayerStreak && playerState.stats.multiplayerStreak > 1 ? (
+                      {playerState.stats.highestCombo && playerState.stats.highestCombo > 4 ? (
                         <div className="flex items-center gap-1.5 text-[11px] font-black text-orange-400">
                           <Flame className="w-3 h-3 fill-orange-400 shrink-0" />
-                          <span>{isEn ? 'Streak' : 'Racha'} x{playerState.stats.multiplayerStreak}</span>
+                          <span>Max Combo x{playerState.stats.highestCombo}</span>
                         </div>
                       ) : null}
                     </div>
@@ -533,7 +533,7 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
                 {/* Tactical Power Bar */}
                 <div className="mt-3.5 pt-3 border-t border-cyan-900/40">
                   <div className="flex justify-between items-center text-[10px] font-mono text-cyan-300 mb-1">
-                    <span className="font-bold uppercase tracking-wider">{isEn ? 'WIN RATING' : 'PROBABILIDAD'}</span>
+                    <span className="font-bold uppercase tracking-wider">{isEn ? 'POWER RATING' : 'POTENCIA'}</span>
                     <span className="font-black text-cyan-200">{playerPowerPercent}%</span>
                   </div>
                   <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-cyan-500/30 p-0.5">
@@ -547,12 +547,12 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
             </div>
 
             {/* -------------------------------------------------------------
-                CENTER: AAA 3D METALLIC VS EMBLEM & LIVE BADGE
+                CENTER: AAA 3D METALLIC VS EMBLEM & TARGET MISSION BADGE
                 ------------------------------------------------------------- */}
             <div className="shrink-0 flex flex-col items-center justify-center my-2 md:my-0 relative z-30 animate-scale-up">
               {/* Dual Cosmic Glow Rings */}
               <div className="relative flex items-center justify-center">
-                <div className="absolute w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-gradient-to-r from-cyan-500 via-amber-500 to-pink-500 opacity-40 blur-2xl animate-avatar-pulse" />
+                <div className="absolute w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-gradient-to-r from-cyan-500 via-amber-500 to-rose-500 opacity-40 blur-2xl animate-avatar-pulse" />
 
                 {/* 3D Metallic VS Emblem Medallion */}
                 <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-tr from-amber-600 via-yellow-400 to-amber-500 p-1 shadow-[0_0_50px_rgba(245,158,11,0.85)] border-2 border-yellow-200/80 flex items-center justify-center">
@@ -567,94 +567,92 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
                 </div>
               </div>
 
-              {/* Live Match Badge */}
-              <div className="mt-3 px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-950/90 via-slate-900/95 to-pink-950/90 border border-amber-400/60 shadow-[0_0_20px_rgba(245,158,11,0.35)] flex items-center gap-2">
-                <Swords className="w-4 h-4 text-amber-400" />
+              {/* Holographic Target Score Mission Badge */}
+              <div className="mt-3 px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-950/90 via-slate-900/95 to-rose-950/90 border border-amber-400/60 shadow-[0_0_20px_rgba(245,158,11,0.35)] flex items-center gap-2">
+                <Crosshair className="w-4 h-4 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
                 <div className="text-center">
                   <div className="text-[9px] font-black text-amber-400 uppercase tracking-widest">
-                    {isEn ? 'LIVE 1v1 SHOWDOWN' : '¡DUELO 1v1 EN DIRECTO!'}
+                    {isEn ? 'TARGET TO BEAT' : 'META A SUPERAR'}
                   </div>
                   <div className="text-xs sm:text-sm font-black text-white tracking-wider">
-                    {arena.entryFeeCoins > 0 ? `${arena.entryFeeCoins} 🪙 ENTRY` : 'FREE ARENA'}
+                    {rival.score.toLocaleString()} PTS
                   </div>
                 </div>
               </div>
             </div>
 
             {/* -------------------------------------------------------------
-                RIGHT FIGHTER: OPPONENT (Pink / Magenta Theme)
+                RIGHT FIGHTER: RIVAL / FRIEND (Ruby / Solar Gold Theme)
                 ------------------------------------------------------------- */}
             <div className="w-full md:flex-1 flex flex-col items-center md:items-end animate-slide-in-right">
               {/* Fighter Calling Card */}
-              <div className="relative w-full max-w-[340px] sm:max-w-[380px] p-4 sm:p-5 rounded-2xl bg-gradient-to-bl from-slate-900/95 via-pink-950/40 to-slate-950/90 border-2 border-pink-500/50 shadow-[0_0_40px_rgba(236,72,153,0.3)] backdrop-blur-xl overflow-hidden group">
+              <div className="relative w-full max-w-[340px] sm:max-w-[380px] p-4 sm:p-5 rounded-2xl bg-gradient-to-bl from-slate-900/95 via-rose-950/40 to-slate-950/90 border-2 border-rose-500/50 shadow-[0_0_40px_rgba(244,63,94,0.3)] backdrop-blur-xl overflow-hidden group">
                 {/* Specular Card Shine Sweep */}
                 <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                  <div className="w-[120%] h-[300%] bg-gradient-to-r from-transparent via-pink-300/15 to-transparent animate-card-shine" />
+                  <div className="w-[120%] h-[300%] bg-gradient-to-r from-transparent via-rose-300/15 to-transparent animate-card-shine" />
                 </div>
 
                 {/* Tactical Header Badge */}
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-mono font-bold text-pink-400/80">
-                    {opponent.flag} {opponent.country || 'GLOBAL'}
+                  <span className="text-[10px] font-mono font-bold text-rose-400/80">
+                    {rival.flag || '🌍'} {isFriend ? 'FRIEND' : 'GHOST'}
                   </span>
 
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-pink-950/80 border border-pink-400/40 text-pink-300 font-black text-[10px] uppercase tracking-widest">
-                    <Shield className="w-3 h-3 text-pink-400" />
-                    <span>{isEn ? 'STELLAR RIVAL' : 'RIVAL ESTELAR'}</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-950/80 border border-rose-400/40 text-rose-300 font-black text-[10px] uppercase tracking-widest">
+                    <Shield className="w-3 h-3 text-rose-400" />
+                    <span>{isFriend ? (isEn ? 'FRIEND RIVAL' : 'AMIGO RIVAL') : (isEn ? 'GHOST RIVAL' : 'RIVAL FANTASMA')}</span>
                   </span>
                 </div>
 
                 {/* Avatar with Floating Holographic Pedestal */}
                 <div className="flex items-center gap-4 flex-row-reverse md:flex-row">
                   <div className="relative shrink-0">
-                    <div className="relative p-1.5 rounded-2xl bg-gradient-to-b from-pink-400/30 to-purple-600/30 border border-pink-400/60 shadow-[0_0_25px_rgba(236,72,153,0.5)]">
+                    <div className="relative p-1.5 rounded-2xl bg-gradient-to-b from-rose-400/30 to-purple-600/30 border border-rose-400/60 shadow-[0_0_25px_rgba(244,63,94,0.5)]">
                       <AnimatedAvatar
-                        avatarItem={opponentAvatarItem}
-                        avatarId={opponent.avatar}
+                        avatarItem={rivalAvatarItem}
+                        avatarId={rival.avatar}
                         size="xl"
                         showBadge={false}
                       />
                     </div>
 
                     {/* Level Pill */}
-                    <div className="absolute -bottom-2 -left-1 bg-slate-950 px-2 py-0.5 rounded-full border border-pink-400 text-pink-300 text-[10px] font-black shadow-lg flex items-center gap-1">
-                      <Zap className="w-2.5 h-2.5 text-pink-400 fill-pink-400" />
-                      <span>{opponent.level}</span>
+                    <div className="absolute -bottom-2 -left-1 bg-slate-950 px-2 py-0.5 rounded-full border border-rose-400 text-rose-300 text-[10px] font-black shadow-lg flex items-center gap-1">
+                      <Zap className="w-2.5 h-2.5 text-rose-400 fill-rose-400" />
+                      <span>{rival.level || 5}</span>
                     </div>
                   </div>
 
-                  {/* Opponent Credentials & Stats */}
+                  {/* Rival Credentials & Stats */}
                   <div className="flex-1 min-w-0 text-right md:text-left">
                     <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight truncate drop-shadow-md">
-                      {opponent.name}
+                      {rival.name}
                     </h3>
 
                     <div className="mt-1.5 space-y-1">
                       <div className="flex items-center justify-end md:justify-start gap-1.5 text-xs font-black text-amber-300">
                         <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span className="truncate">{opponent.trophies} {isEn ? 'Trophies' : 'Copas'}</span>
+                        <span className="truncate">{rival.score.toLocaleString()} pts</span>
                       </div>
 
-                      {opponent.winStreak > 1 && (
-                        <div className="flex items-center justify-end md:justify-start gap-1.5 text-[11px] font-black text-orange-400">
-                          <Flame className="w-3 h-3 fill-orange-400 shrink-0" />
-                          <span>{isEn ? 'Win Streak' : 'Racha'} x{opponent.winStreak}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-end md:justify-start gap-1.5 text-[11px] font-black text-rose-400">
+                        <Target className="w-3 h-3 text-rose-400 shrink-0" />
+                        <span>{isEn ? 'Record to Defeat' : 'Récord a Derrotar'}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Tactical Power Bar */}
-                <div className="mt-3.5 pt-3 border-t border-pink-900/40">
-                  <div className="flex justify-between items-center text-[10px] font-mono text-pink-300 mb-1">
-                    <span className="font-black text-pink-200">{opponentPowerPercent}%</span>
-                    <span className="font-bold uppercase tracking-wider">{isEn ? 'RIVAL RATING' : 'PROBABILIDAD RIVAL'}</span>
+                <div className="mt-3.5 pt-3 border-t border-rose-900/40">
+                  <div className="flex justify-between items-center text-[10px] font-mono text-rose-300 mb-1">
+                    <span className="font-black text-rose-200">{rivalPowerPercent}%</span>
+                    <span className="font-bold uppercase tracking-wider">{isEn ? 'RIVAL POWER' : 'POTENCIA RIVAL'}</span>
                   </div>
-                  <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-pink-500/30 p-0.5">
+                  <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-rose-500/30 p-0.5">
                     <div
-                      className="h-full rounded-full bg-gradient-to-l from-pink-500 to-amber-500 shadow-[0_0_10px_#ec4899] transition-all duration-700"
-                      style={{ width: `${opponentPowerPercent}%` }}
+                      className="h-full rounded-full bg-gradient-to-l from-rose-500 to-amber-500 shadow-[0_0_10px_#f43f5e] transition-all duration-700"
+                      style={{ width: `${rivalPowerPercent}%` }}
                     />
                   </div>
                 </div>
@@ -703,14 +701,14 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
         <div className="flex items-center gap-2">
           <Swords className="w-3.5 h-3.5 text-amber-400" />
           <span className="font-bold text-slate-300">
-            {isEn ? 'OBJECTIVE: HIGHEST SCORE WINS PRIZE POOL' : 'OBJETIVO: MAYOR PUNTUACIÓN GANA EL BOTE'}
+            {isEn ? 'RULES: CLASSIC HIGH-SCORE SURPASS' : 'REGLAS: SUPERAR PUNTUACIÓN OBJETIVO'}
           </span>
         </div>
 
         <div className="hidden sm:flex items-center gap-4">
-          <span>PRIZE: {arena.prizeCoins} 🪙 + 30 🏆</span>
+          <span>{isEn ? 'ARENA: ORBITAL VOID' : 'ARENA: VACÍO ORBITAL'}</span>
           <span>•</span>
-          <span className="text-amber-300 font-bold">MATCH PROTOCOL 1.0</span>
+          <span className="text-amber-300 font-bold">REWARD: +50 🏆 + EXP</span>
         </div>
       </div>
     </div>

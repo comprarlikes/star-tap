@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Trophy, Zap, Repeat, Sparkles, Check, Swords, Ghost, Tv, Home, Share2 } from 'lucide-react';
+import { Trophy, Zap, Repeat, Sparkles, Check, Swords, Ghost, Tv, Home, Share2, Star } from 'lucide-react';
 import { t, Language } from '../i18n';
 import { soundManager } from '../services/sound';
 import { hapticManager } from '../services/haptics';
+import { CampaignLevel } from '../types';
 
 interface GameOverModalProps {
   score: number;
@@ -27,6 +28,13 @@ interface GameOverModalProps {
     ghostScore: number;
     bonusCoins: number;
     bonusXp: number;
+  } | null;
+  campaignResult?: {
+    isVictory: boolean;
+    level: CampaignLevel;
+    starsEarned: number;
+    isFirstClear: boolean;
+    rewardTalentPoints?: number;
   } | null;
   onPlayAgain: () => void;
   onGoHome?: () => void;
@@ -84,6 +92,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   didLevelUp,
   newLevel,
   duelResult,
+  campaignResult,
   onPlayAgain,
   onGoHome,
   onDoubleCoins,
@@ -132,34 +141,34 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   };
 
   useEffect(() => {
-    // Fire festive confetti on high score or level up
+    // Fire festive confetti on high score or level up or campaign victory
     try {
       confetti({
-        particleCount: isNewHighScore || didLevelUp ? 130 : 65,
+        particleCount: isNewHighScore || didLevelUp || campaignResult?.isVictory ? 130 : 65,
         spread: 80,
         origin: { y: 0.55 },
       });
     } catch {
       // fallback
     }
-  }, [isNewHighScore, didLevelUp]);
+  }, [isNewHighScore, didLevelUp, campaignResult]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-2xl animate-fade-in select-none">
-      <div className="w-full max-w-sm bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950/95 border border-amber-500/30 rounded-[2.5rem] p-5 sm:p-6 text-white shadow-[0_0_60px_rgba(245,158,11,0.15)] relative overflow-hidden flex flex-col items-center text-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-2xl animate-fade-in select-none overflow-y-auto overscroll-contain safe-pb safe-pt">
+      <div className="w-full max-w-sm max-h-[92dvh] overflow-y-auto no-scrollbar bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950/95 border border-amber-500/30 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-6 text-white shadow-[0_0_60px_rgba(245,158,11,0.15)] relative flex flex-col items-center text-center my-auto">
         
         {/* Ambient Top & Bottom Radial Glows */}
         <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-64 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-64 h-64 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Floating Trophy / Crown Badge with Glow Ring */}
-        <div className="relative mb-3.5 group">
+        <div className="relative mb-2.5 sm:mb-3.5 group shrink-0">
           <div className="absolute -inset-1 rounded-3xl bg-gradient-to-tr from-amber-500 via-yellow-300 to-orange-500 blur-sm opacity-70 group-hover:opacity-100 transition duration-300" />
-          <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-amber-600 via-yellow-400 to-amber-300 flex items-center justify-center text-4xl shadow-2xl border-2 border-yellow-100/50 transform group-hover:scale-105 transition-transform duration-300">
-            {isNewHighScore ? '👑' : '🏆'}
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-amber-600 via-yellow-400 to-amber-300 flex items-center justify-center text-3xl sm:text-4xl shadow-2xl border-2 border-yellow-100/50 transform group-hover:scale-105 transition-transform duration-300">
+            {campaignResult ? (campaignResult.isVictory ? '⭐' : '💫') : isNewHighScore ? '👑' : '🏆'}
           </div>
 
-          {isNewHighScore && (
+          {isNewHighScore && !campaignResult && (
             <span className="absolute -bottom-2.5 -right-2 bg-gradient-to-r from-red-600 to-pink-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider animate-bounce shadow-xl border border-red-300/40 flex items-center gap-1">
               <Sparkles className="w-3 h-3 text-amber-200 fill-amber-200" />
               {lang === 'en' ? 'RECORD!' : '¡RÉCORD!'}
@@ -169,10 +178,59 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 
         {/* Modal Title */}
         <h3 className="text-2xl font-black tracking-tight text-white mb-1 drop-shadow-md">
-          {duelResult 
+          {campaignResult
+            ? (campaignResult.isVictory 
+                ? (lang === 'en' ? '🌟 LEVEL COMPLETED!' : '🌟 ¡NIVEL COMPLETADO!')
+                : (lang === 'en' ? '💀 OBJECTIVE FAILED' : '💀 OBJETIVO NO SUPERADO'))
+            : duelResult 
             ? (duelResult.isVictory ? t('duelVictoryTitle', lang) : t('duelDefeatTitle', lang)) 
             : (isNewHighScore ? t('newRecordTitle', lang) : t('gameOverTitle', lang))}
         </h3>
+
+        {/* Campaign Result Card */}
+        {campaignResult && (
+          <div className={`w-full my-2 p-3.5 rounded-2xl border flex flex-col items-center gap-2 shadow-lg relative overflow-hidden ${
+            campaignResult.isVictory
+              ? 'bg-gradient-to-br from-amber-950/80 via-slate-950 to-purple-950/80 border-amber-500/50 text-amber-200'
+              : 'bg-slate-950/80 border-slate-800 text-slate-400'
+          }`}>
+            <div className="text-xs font-black text-white flex items-center gap-1.5">
+              <span>{lang === 'en' ? (campaignResult.level.nameEn || campaignResult.level.name) : campaignResult.level.name}</span>
+            </div>
+
+            {/* 3-Star Display */}
+            <div className="flex items-center gap-2 my-1">
+              {[1, 2, 3].map((starNum) => {
+                const isEarned = campaignResult.starsEarned >= starNum;
+                return (
+                  <div
+                    key={starNum}
+                    className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl transition-all ${
+                      isEarned
+                        ? 'bg-gradient-to-tr from-amber-400 to-yellow-300 text-slate-950 shadow-lg shadow-amber-400/40 scale-110 animate-bounce border border-yellow-100'
+                        : 'bg-slate-800/80 text-slate-600 border border-slate-700'
+                    }`}
+                  >
+                    ⭐
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="text-[11px] font-semibold text-slate-300">
+              {campaignResult.isVictory
+                ? (lang === 'en' ? `Achieved ${campaignResult.starsEarned}/3 Stars!` : `¡Conseguiste ${campaignResult.starsEarned}/3 Estrellas!`)
+                : (lang === 'en' ? `Target score: ${campaignResult.level.starRequirements[0]} pts` : `Puntaje meta: ${campaignResult.level.starRequirements[0]} pts`)}
+            </div>
+
+            {campaignResult.rewardTalentPoints && campaignResult.rewardTalentPoints > 0 && (
+              <span className="text-[10px] font-black text-purple-300 bg-purple-950/90 px-3 py-1 rounded-full border border-purple-500/50 flex items-center gap-1">
+                <span>🔮</span>
+                <span>{lang === 'en' ? `+${campaignResult.rewardTalentPoints} Talent Point!` : `¡+${campaignResult.rewardTalentPoints} Punto de Talento!`}</span>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Duel Ghost Result Box */}
         {duelResult && (
@@ -270,7 +328,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             type="button"
             onClick={() => {
               soundManager.playButtonClick();
-              hapticManager.light();
+              hapticManager.lightTap();
               onDoubleCoins();
             }}
             className="w-full mb-3 py-3 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:brightness-110 active:scale-95 text-white font-black text-xs rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 border border-pink-400/40 group relative overflow-hidden cursor-pointer"

@@ -11,7 +11,11 @@ import {
   MultiplayerArena,
   MultiplayerOpponent,
   Friend,
-  DirectChallenge
+  DirectChallenge,
+  CampaignLevel,
+  CampaignProgress,
+  CosmicPassReward,
+  AppUpdateInfo
 } from './types';
 import { 
   loadPlayerState, 
@@ -33,6 +37,7 @@ import {
   getMyPlayerCode
 } from './services/friends';
 import { soundManager } from './services/sound';
+import { getTalentValue } from './data/talents';
 import { 
   initAuth, 
   savePlayerStateToCloud, 
@@ -52,6 +57,13 @@ import { FriendsModal } from './components/FriendsModal';
 import { StatsModal } from './components/StatsModal';
 import { ProfileModal } from './components/ProfileModal';
 import { AvatarSelectorModal } from './components/AvatarSelectorModal';
+import { CampaignMapModal } from './components/CampaignMapModal';
+import { TalentsModal } from './components/TalentsModal';
+import { CosmicPassModal } from './components/CosmicPassModal';
+import { ConstellationsModal } from './components/ConstellationsModal';
+import { constellationService } from './services/constellationService';
+import { updateService } from './services/updateService';
+import { AppUpdateModal } from './components/AppUpdateModal';
 import { TutorialOverlay } from './components/TutorialOverlay';
 import { AuthModal } from './components/AuthModal';
 import { getAvatarById } from './data/avatars';
@@ -61,6 +73,7 @@ import { DailyLoginBonusModal } from './components/DailyLoginBonusModal';
 import { LuckySpinModal } from './components/LuckySpinModal';
 import { MultiplayerLobbyModal } from './components/MultiplayerLobbyModal';
 import { MultiplayerVersusShowdown } from './components/MultiplayerVersusShowdown';
+import { DuelVersusShowdown } from './components/DuelVersusShowdown';
 import { MultiplayerResultModal } from './components/MultiplayerResultModal';
 import { ARENAS } from './data/multiplayerArenas';
 import { initializeAdMob, showRewardedAd, showInterstitialAd } from './services/admob';
@@ -87,6 +100,9 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
   const [duelGhostRival, setDuelGhostRival] = useState<GhostRival | null>(null);
+  const [showDuelVersusIntro, setShowDuelVersusIntro] = useState<boolean>(false);
+  const [isDuelWithFriend, setIsDuelWithFriend] = useState<boolean>(false);
+  const [activeCampaignLevel, setActiveCampaignLevel] = useState<CampaignLevel | null>(null);
 
   // 1v1 Real-Time Multiplayer State
   const [showMultiplayerLobby, setShowMultiplayerLobby] = useState<boolean>(false);
@@ -121,8 +137,69 @@ export default function App() {
 
   // Modals
   const [activeModal, setActiveModal] = useState<
-    'shop' | 'quests' | 'achievements' | 'leaderboard' | 'friends' | 'stats' | 'profile' | 'auth' | 'avatar' | null
+    'shop' | 'quests' | 'achievements' | 'leaderboard' | 'friends' | 'stats' | 'profile' | 'auth' | 'avatar' | 'campaign' | 'talents' | 'cosmic_pass' | 'constellations' | null
   >(null);
+
+  // App Update System State
+  const [appUpdateInfo, setAppUpdateInfo] = useState<AppUpdateInfo | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
+  const [hasPendingUpdate, setHasPendingUpdate] = useState<boolean>(false);
+
+  // Check for app updates
+  const runUpdateCheck = useCallback(async (isManual = false): Promise<boolean> => {
+    try {
+      const result = await updateService.checkForUpdates(isManual);
+      if (result.hasUpdate && result.updateInfo) {
+        setAppUpdateInfo(result.updateInfo);
+        setHasPendingUpdate(true);
+        // Show update modal immediately if mandatory, or if not dismissed yet, or if manual check
+        if (result.isMandatory || isManual || !updateService.isUpdateDismissed(result.updateInfo.version)) {
+          setShowUpdateModal(true);
+        }
+        return true;
+      } else {
+        setHasPendingUpdate(false);
+        setAppUpdateInfo(null);
+        return false;
+      }
+    } catch (err) {
+      console.warn('Update check failed:', err);
+      return false;
+    }
+  }, []);
+
+  // Run update check on mount after initial splash
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      runUpdateCheck(false);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [runUpdateCheck]);
+
+  // Handle claiming the APK update bonus
+  const handleClaimUpdateReward = (coins: number, stardust: number) => {
+    setPlayerState((prev) => {
+      const next = {
+        ...prev,
+        coins: prev.coins + coins,
+        stardust: (prev.stardust || 0) + stardust,
+      };
+      savePlayerState(next);
+      if (userId) savePlayerStateToCloud(userId, next).catch(console.error);
+      return next;
+    });
+    setToastQueue((prev) => [
+      ...prev,
+      {
+        id: `update-reward-${Date.now()}`,
+        title: playerState.language === 'en' ? 'Update Bounty Claimed!' : '¡Regalo por Actualizar!',
+        description: playerState.language === 'en' 
+          ? `+${coins} Coins 🪙 and +${stardust} Stardust ✨ added!`
+          : `+${coins} Monedas 🪙 y +${stardust} Polvo Estelar ✨ añadidos`,
+        icon: '🎁',
+      },
+    ]);
+  };
 
   // Friends & Social Challenges Data
   const [friends, setFriends] = useState<Friend[]>(loadFriends);
@@ -361,6 +438,13 @@ export default function App() {
       bonusCoins: number;
       bonusXp: number;
     } | null;
+    campaignResult?: {
+      isVictory: boolean;
+      level: CampaignLevel;
+      starsEarned: number;
+      isFirstClear: boolean;
+      rewardTalentPoints: number;
+    } | null;
   } | null>(null);
 
   // Sync mute state with soundManager
@@ -384,6 +468,15 @@ export default function App() {
   const handleStartGame = () => {
     soundManager.playButtonClick();
     setGameOverData(null);
+    if (gameMode === 'duel' && duelGhostRival) {
+      setShowDuelVersusIntro(true);
+    } else {
+      setIsPlaying(true);
+    }
+  };
+
+  const handleDuelIntroComplete = () => {
+    setShowDuelVersusIntro(false);
     setIsPlaying(true);
   };
 
@@ -432,6 +525,13 @@ export default function App() {
         nextBoosters.star_magnet_boost = Math.max(0, (nextBoosters.star_magnet_boost || 0) - 1);
       }
 
+      // Talent Perk: Stardust Harvest (+X% Coins)
+      const harvestRank = playerState.talents?.stardust_harvest || 0;
+      if (harvestRank > 0) {
+        const harvestBonus = 1 + (getTalentValue('stardust_harvest', harvestRank) / 100);
+        coinsGained = Math.floor(coinsGained * harvestBonus);
+      }
+
       // Base XP Calculation (1 pt = 0.5 XP + combo bonus)
       let xpGained = Math.max(15, Math.floor(finalScore * 0.5 + finalStats.maxCombo * 5));
 
@@ -459,6 +559,101 @@ export default function App() {
           bonusXp,
         };
       }
+
+      // Campaign Mode Progression & Objectives Check
+      let campaignResult: {
+        isVictory: boolean;
+        level: CampaignLevel;
+        starsEarned: number;
+        isFirstClear: boolean;
+        rewardTalentPoints: number;
+      } | null = null;
+
+      let nextCampaignProgress: CampaignProgress = playerState.campaignProgress || {
+        unlockedLevel: 1,
+        levelStars: {},
+        levelHighScores: {},
+        claimedChapterRewards: [],
+      };
+
+      let talentPointsGained = 0;
+
+      if (gameMode === 'campaign' && activeCampaignLevel) {
+        const meetsBombs = !activeCampaignLevel.noBombsAllowed || finalStats.bombsHit === 0;
+        const meetsCombo = !activeCampaignLevel.targetCombo || finalStats.maxCombo >= activeCampaignLevel.targetCombo;
+        const meetsScore = finalScore >= activeCampaignLevel.starRequirements[0];
+        const isVictory = meetsScore && meetsBombs && meetsCombo;
+
+        let starsEarned = 0;
+        if (isVictory) {
+          if (finalScore >= activeCampaignLevel.starRequirements[2]) starsEarned = 3;
+          else if (finalScore >= activeCampaignLevel.starRequirements[1]) starsEarned = 2;
+          else starsEarned = 1;
+        }
+
+        const prevStars = nextCampaignProgress.levelStars?.[activeCampaignLevel.id] || 0;
+        const isFirstClear = prevStars === 0 && isVictory;
+        const rewardTalentPoints = isFirstClear ? (activeCampaignLevel.rewardTalentPoints || 1) : 0;
+
+        if (isVictory) {
+          coinsGained += activeCampaignLevel.rewardCoins;
+          xpGained += activeCampaignLevel.rewardXp;
+          talentPointsGained += rewardTalentPoints;
+
+          const newStarsForLevel = Math.max(prevStars, starsEarned);
+          const newLevelStars = { ...(nextCampaignProgress.levelStars || {}), [activeCampaignLevel.id]: newStarsForLevel };
+          const prevHighScore = nextCampaignProgress.levelHighScores?.[activeCampaignLevel.id] || 0;
+          const newLevelHighScores = { ...(nextCampaignProgress.levelHighScores || {}), [activeCampaignLevel.id]: Math.max(prevHighScore, finalScore) };
+
+          const nextUnlocked = Math.max(nextCampaignProgress.unlockedLevel || 1, activeCampaignLevel.id + 1);
+
+          nextCampaignProgress = {
+            ...nextCampaignProgress,
+            unlockedLevel: nextUnlocked,
+            levelStars: newLevelStars,
+            levelHighScores: newLevelHighScores,
+          };
+        }
+
+        campaignResult = {
+          isVictory,
+          level: activeCampaignLevel,
+          starsEarned,
+          isFirstClear,
+          rewardTalentPoints,
+        };
+      }
+
+      // Cosmic Pass Progress Calculation
+      const basePassXp = Math.max(10, Math.floor(finalScore * 0.25) + finalStats.golden * 2 + finalStats.diamond * 5);
+      const passBonusXp = campaignResult?.isVictory ? 100 : 0;
+      const totalPassXpGained = basePassXp + passBonusXp;
+
+      let nextPass = playerState.cosmicPass || {
+        seasonId: 'season_1',
+        seasonName: 'Temporada 1: Génesis Cósmica',
+        seasonNameEn: 'Season 1: Cosmic Genesis',
+        currentTier: 1,
+        currentXp: 0,
+        xpPerTier: 1000,
+        maxTier: 30,
+        hasVipPass: false,
+        claimedFreeTiers: [],
+        claimedVipTiers: [],
+        seasonEndTimestamp: Date.now() + 30 * 86400000,
+      };
+
+      let nextPassXp = nextPass.currentXp + totalPassXpGained;
+      let nextPassTier = nextPass.currentTier;
+      while (nextPassXp >= nextPass.xpPerTier && nextPassTier < nextPass.maxTier) {
+        nextPassXp -= nextPass.xpPerTier;
+        nextPassTier += 1;
+      }
+      nextPass = {
+        ...nextPass,
+        currentXp: nextPassXp,
+        currentTier: nextPassTier,
+      };
 
       // Calculate XP and Level Up
       let nextXp = playerState.xp + xpGained;
@@ -502,12 +697,41 @@ export default function App() {
         scoreHistory: updatedHistory,
       };
 
+      // Constellation Points Contribution
+      if (playerState.constellationId) {
+        const clanContrib = constellationService.contributeGamePoints(
+          playerState.constellationId,
+          finalScore,
+          gameMode,
+          playerState
+        );
+        if (clanContrib.chestLevelUp) {
+          soundManager.playLevelUp();
+          setToastQueue((prev) => [
+            ...prev,
+            {
+              id: `clan_chest_lvl_${Date.now()}`,
+              type: 'achievement',
+              title: playerState.language === 'en' ? 'Clan Chest Leveled Up!' : '¡Cofre de Clan Subió de Nivel! 🎁',
+              description: playerState.language === 'en' ? 'More stardust and coins for your Constellation!' : '¡Mejores recompensas para todos los miembros!',
+              icon: '🛡️',
+              rewardCoins: 0,
+              rewardXp: 0,
+            },
+          ]);
+        }
+      }
+
       setPlayerState((prev) => ({
         ...prev,
         coins: prev.coins + coinsGained,
         xp: nextXp,
         level: nextLevel,
+        talentPoints: (prev.talentPoints || 0) + talentPointsGained,
+        totalTalentPointsEarned: (prev.totalTalentPointsEarned || 0) + talentPointsGained,
         activeBoosters: nextBoosters,
+        campaignProgress: nextCampaignProgress,
+        cosmicPass: nextPass,
         stats: nextStats,
       }));
 
@@ -616,6 +840,7 @@ export default function App() {
         newLevel: nextLevel,
         hasDoubledCoins: false,
         duelResult,
+        campaignResult,
       });
 
       // Launch native AdMob Interstitial placement (does not grant rewards)
@@ -623,7 +848,7 @@ export default function App() {
         console.warn('AdMob Interstitial trigger error:', err)
       );
     },
-    [playerState, leaderboard, gameMode, duelGhostRival]
+    [playerState, leaderboard, gameMode, duelGhostRival, activeCampaignLevel]
   );
 
   // Double Coins Reward Action (Google AdMob Rewarded SDK flow)
@@ -1362,6 +1587,47 @@ export default function App() {
           equippedCharacter: item.id,
         }));
       }
+    } else if (item.type === 'avatar') {
+      const unlockedList = playerState.unlockedAvatars || [];
+      if (unlockedList.includes(item.id)) {
+        handleSelectAvatar(item.id);
+      } else if (playerState.coins >= item.price) {
+        soundManager.playCoin();
+        hapticManager.success();
+        setPlayerState((prev) => {
+          const currentUnlocked = prev.unlockedAvatars || [];
+          const nextUnlocked = [...currentUnlocked, item.id];
+          const updated = {
+            ...prev,
+            coins: prev.coins - item.price,
+            unlockedAvatars: nextUnlocked,
+            avatar: item.id,
+          };
+          savePlayerState(updated);
+          if (userId) savePlayerStateToCloud(userId, updated);
+          return updated;
+        });
+
+        const avatarItem = getAvatarById(item.id);
+        setLeaderboard((prevLb) => {
+          const updated = prevLb.map((l) => (l.isUser ? { ...l, avatar: avatarItem.emoji } : l));
+          saveLeaderboard(updated);
+          return updated;
+        });
+
+        setToastQueue((prev) => [
+          ...prev,
+          {
+            id: `avatar_bought_${Date.now()}`,
+            type: 'achievement',
+            title: playerState.language === 'en' ? 'Exclusive Avatar Unlocked!' : '¡Avatar Exclusivo Desbloqueado!',
+            description: playerState.language === 'en' ? `${avatarItem.name.en} equipped!` : `¡${avatarItem.name.es} equipado!`,
+            icon: '✨',
+            rewardCoins: 0,
+            rewardXp: 50,
+          },
+        ]);
+      }
     }
   };
 
@@ -1431,6 +1697,245 @@ export default function App() {
       };
       saveScoreToCloudLeaderboard(userId, userEntry);
     }
+  };
+
+  // Campaign Mode Handlers
+  const handleStartCampaignLevel = (level: CampaignLevel) => {
+    setActiveCampaignLevel(level);
+    setGameMode('campaign');
+    setActiveModal(null);
+    setGameOverData(null);
+    setIsPlaying(true);
+    soundManager.playButtonClick();
+  };
+
+  // Talent Tree Handlers
+  const handleUpgradeTalent = (talentId: string, cost: number) => {
+    if ((playerState.talentPoints || 0) < cost) return;
+    soundManager.playLevelUp();
+    hapticManager.success();
+    setPlayerState((prev) => {
+      const currentRank = prev.talents?.[talentId] || 0;
+      const nextTalents = { ...(prev.talents || {}), [talentId]: currentRank + 1 };
+      const updated: PlayerState = {
+        ...prev,
+        talentPoints: (prev.talentPoints || 0) - cost,
+        talents: nextTalents,
+      };
+      savePlayerState(updated);
+      if (userId) savePlayerStateToCloud(userId, updated);
+      return updated;
+    });
+  };
+
+  const handleResetTalents = () => {
+    soundManager.playButtonClick();
+    hapticManager.mediumTap();
+    setPlayerState((prev) => {
+      const totalPoints = prev.totalTalentPointsEarned || 0;
+      const updated: PlayerState = {
+        ...prev,
+        talents: {
+          cosmic_reflexes: 0,
+          gravity_pull: 0,
+          astral_luck: 0,
+          fever_overdrive: 0,
+          singularity_shield: 0,
+          stardust_harvest: 0,
+        },
+        talentPoints: totalPoints,
+      };
+      savePlayerState(updated);
+      if (userId) savePlayerStateToCloud(userId, updated);
+      return updated;
+    });
+  };
+
+  const handleBuyTalentPoint = (coinPrice: number): boolean => {
+    if (playerState.coins < coinPrice) return false;
+    soundManager.playCoin();
+    hapticManager.success();
+    setPlayerState((prev) => {
+      const updated: PlayerState = {
+        ...prev,
+        coins: prev.coins - coinPrice,
+        talentPoints: (prev.talentPoints || 0) + 1,
+        totalTalentPointsEarned: (prev.totalTalentPointsEarned || 0) + 1,
+      };
+      savePlayerState(updated);
+      if (userId) savePlayerStateToCloud(userId, updated);
+      return updated;
+    });
+    return true;
+  };
+
+  // Cosmic Pass Handlers
+  const handleClaimCosmicPassReward = (tier: number, track: 'free' | 'vip', reward: CosmicPassReward) => {
+    soundManager.playLevelUp();
+    hapticManager.success();
+    setPlayerState((prev) => {
+      const pass = prev.cosmicPass || {
+        seasonId: 'season_1',
+        seasonName: 'Temporada 1: Génesis Cósmica',
+        seasonNameEn: 'Season 1: Cosmic Genesis',
+        currentTier: 1,
+        currentXp: 0,
+        xpPerTier: 1000,
+        maxTier: 30,
+        hasVipPass: false,
+        claimedFreeTiers: [],
+        claimedVipTiers: [],
+        seasonEndTimestamp: Date.now() + 30 * 86400000,
+      };
+
+      const claimedList = track === 'free' ? [...pass.claimedFreeTiers, tier] : [...pass.claimedVipTiers, tier];
+      const nextPass = {
+        ...pass,
+        claimedFreeTiers: track === 'free' ? claimedList : pass.claimedFreeTiers,
+        claimedVipTiers: track === 'vip' ? claimedList : pass.claimedVipTiers,
+      };
+
+      let nextCoins = prev.coins;
+      let nextTalentPoints = prev.talentPoints || 0;
+      let nextTotalTalentPoints = prev.totalTalentPointsEarned || 0;
+      const nextBoosters = { ...(prev.activeBoosters || {}) };
+      const nextUnlockedAvatars = [...(prev.unlockedAvatars || [])];
+      const nextUnlockedSkins = [...prev.unlockedSkins];
+
+      if (reward.type === 'coins') nextCoins += reward.amount || 0;
+      if (reward.type === 'talent_point') {
+        nextTalentPoints += reward.amount || 1;
+        nextTotalTalentPoints += reward.amount || 1;
+      }
+      if (reward.type === 'booster' && reward.id) {
+        nextBoosters[reward.id] = (nextBoosters[reward.id] || 0) + (reward.amount || 1);
+      }
+      if (reward.type === 'avatar' && reward.id && !nextUnlockedAvatars.includes(reward.id)) {
+        nextUnlockedAvatars.push(reward.id);
+      }
+      if (reward.type === 'skin' && reward.id && !nextUnlockedSkins.includes(reward.id)) {
+        nextUnlockedSkins.push(reward.id);
+      }
+
+      const updated: PlayerState = {
+        ...prev,
+        coins: nextCoins,
+        talentPoints: nextTalentPoints,
+        totalTalentPointsEarned: nextTotalTalentPoints,
+        activeBoosters: nextBoosters,
+        unlockedAvatars: nextUnlockedAvatars,
+        unlockedSkins: nextUnlockedSkins,
+        cosmicPass: nextPass,
+      };
+      savePlayerState(updated);
+      if (userId) savePlayerStateToCloud(userId, updated);
+      return updated;
+    });
+  };
+
+  const handleClaimAllCosmicPassRewards = (rewardsToClaim: { tier: number; track: 'free' | 'vip'; reward: CosmicPassReward }[]) => {
+    if (rewardsToClaim.length === 0) return;
+    soundManager.playLevelUp();
+    hapticManager.success();
+    setPlayerState((prev) => {
+      const pass = prev.cosmicPass || {
+        seasonId: 'season_1',
+        seasonName: 'Temporada 1: Génesis Cósmica',
+        seasonNameEn: 'Season 1: Cosmic Genesis',
+        currentTier: 1,
+        currentXp: 0,
+        xpPerTier: 1000,
+        maxTier: 30,
+        hasVipPass: false,
+        claimedFreeTiers: [],
+        claimedVipTiers: [],
+        seasonEndTimestamp: Date.now() + 30 * 86400000,
+      };
+
+      const freeClaimed = new Set(pass.claimedFreeTiers);
+      const vipClaimed = new Set(pass.claimedVipTiers);
+
+      let nextCoins = prev.coins;
+      let nextTalentPoints = prev.talentPoints || 0;
+      let nextTotalTalentPoints = prev.totalTalentPointsEarned || 0;
+      const nextBoosters = { ...(prev.activeBoosters || {}) };
+      const nextUnlockedAvatars = [...(prev.unlockedAvatars || [])];
+      const nextUnlockedSkins = [...prev.unlockedSkins];
+
+      rewardsToClaim.forEach(({ tier, track, reward }) => {
+        if (track === 'free') freeClaimed.add(tier);
+        else vipClaimed.add(tier);
+
+        if (reward.type === 'coins') nextCoins += reward.amount || 0;
+        if (reward.type === 'talent_point') {
+          nextTalentPoints += reward.amount || 1;
+          nextTotalTalentPoints += reward.amount || 1;
+        }
+        if (reward.type === 'booster' && reward.id) {
+          nextBoosters[reward.id] = (nextBoosters[reward.id] || 0) + (reward.amount || 1);
+        }
+        if (reward.type === 'avatar' && reward.id && !nextUnlockedAvatars.includes(reward.id)) {
+          nextUnlockedAvatars.push(reward.id);
+        }
+        if (reward.type === 'skin' && reward.id && !nextUnlockedSkins.includes(reward.id)) {
+          nextUnlockedSkins.push(reward.id);
+        }
+      });
+
+      const nextPass = {
+        ...pass,
+        claimedFreeTiers: Array.from(freeClaimed),
+        claimedVipTiers: Array.from(vipClaimed),
+      };
+
+      const updated: PlayerState = {
+        ...prev,
+        coins: nextCoins,
+        talentPoints: nextTalentPoints,
+        totalTalentPointsEarned: nextTotalTalentPoints,
+        activeBoosters: nextBoosters,
+        unlockedAvatars: nextUnlockedAvatars,
+        unlockedSkins: nextUnlockedSkins,
+        cosmicPass: nextPass,
+      };
+      savePlayerState(updated);
+      if (userId) savePlayerStateToCloud(userId, updated);
+      return updated;
+    });
+  };
+
+  const handleUnlockVipPass = (priceCoins: number): boolean => {
+    if (playerState.coins < priceCoins) return false;
+    soundManager.playLevelUp();
+    hapticManager.success();
+    setPlayerState((prev) => {
+      const pass = prev.cosmicPass || {
+        seasonId: 'season_1',
+        seasonName: 'Temporada 1: Génesis Cósmica',
+        seasonNameEn: 'Season 1: Cosmic Genesis',
+        currentTier: 1,
+        currentXp: 0,
+        xpPerTier: 1000,
+        maxTier: 30,
+        hasVipPass: false,
+        claimedFreeTiers: [],
+        claimedVipTiers: [],
+        seasonEndTimestamp: Date.now() + 30 * 86400000,
+      };
+
+      const updated: PlayerState = {
+        ...prev,
+        coins: prev.coins - priceCoins,
+        cosmicPass: {
+          ...pass,
+          hasVipPass: true,
+        },
+      };
+      savePlayerState(updated);
+      if (userId) savePlayerStateToCloud(userId, updated);
+      return updated;
+    });
+    return true;
   };
 
   // Onboarding Tutorial Handlers
@@ -1517,17 +2022,25 @@ export default function App() {
   };
 
   const handleStartDirectMatch = (friend: Friend, mode: GameMode, targetScore?: number) => {
-    setDuelGhostRival({
+    const friendAvatar = getAvatarById(friend.avatar).emoji || friend.avatar || '⭐';
+    const rivalData: GhostRival = {
       id: friend.id,
       name: friend.name,
       score: targetScore || friend.highScore,
-      avatar: getAvatarById(friend.avatar).emoji || '⭐',
+      avatar: friend.avatar || friendAvatar,
       flag: friend.flag || '🌍',
       level: friend.level || 1,
-    });
+    };
+    setDuelGhostRival(rivalData);
     setGameMode(mode === 'duel' ? 'duel' : mode);
     setActiveModal(null);
-    setIsPlaying(false);
+    setGameOverData(null);
+    setIsDuelWithFriend(true);
+    if (mode === 'duel') {
+      setShowDuelVersusIntro(true);
+    } else {
+      setIsPlaying(true);
+    }
   };
 
   // Get active Theme background style class
@@ -1546,49 +2059,60 @@ export default function App() {
   };
 
   return (
-    <div className={`w-full h-screen ${getThemeBackground()} flex flex-col items-center justify-center overflow-hidden font-sans select-none`}>
-      {/* Outer Shell Wrapper (Mobile Frame or Desktop view) */}
+    <div className={`w-full h-[100dvh] min-h-[100dvh] ${getThemeBackground()} flex flex-col items-center justify-center overflow-hidden font-sans select-none safe-pt safe-pb relative`}>
+      {/* Subtle AAA CRT / Holographic Scanline Overlay */}
+      <div className="absolute inset-0 aaa-scanlines z-50 pointer-events-none opacity-40" />
+
+      {/* Outer Shell Wrapper (Fluid Responsive or Mobile Frame View) */}
       <div
         className={`relative flex flex-col w-full h-full transition-all duration-300 ${
           isMobileFrame
-            ? 'max-w-[420px] max-h-[840px] border-8 border-slate-800 rounded-[40px] shadow-2xl overflow-hidden my-auto ring-1 ring-slate-700'
-            : 'max-w-4xl h-full'
+            ? 'max-w-[420px] max-h-[96dvh] sm:max-h-[860px] border-4 sm:border-8 border-slate-800 rounded-[28px] sm:rounded-[40px] shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden my-auto ring-2 ring-cyan-500/20'
+            : 'max-w-5xl h-full mx-auto'
         }`}
       >
         {/* Android Notch Bar if Mobile Frame */}
         {isMobileFrame && (
-          <div className="w-full bg-slate-950 h-6 flex items-center justify-center relative z-40">
-            <div className="w-20 h-3 bg-slate-800 rounded-full" />
+          <div className="w-full bg-slate-950 h-5 sm:h-6 flex items-center justify-center relative z-40 shrink-0">
+            <div className="w-16 sm:w-20 h-2.5 sm:h-3 bg-slate-800 rounded-full" />
           </div>
         )}
 
-        {/* Top Header Navigation */}
-        <HeaderHUD
-          playerState={playerState}
-          gameMode={gameMode}
-          setGameMode={setGameMode}
-          isPlaying={isPlaying}
-          onOpenShop={() => setActiveModal('shop')}
-          onOpenQuests={() => setActiveModal('quests')}
-          onOpenAchievements={() => setActiveModal('achievements')}
-          onOpenLeaderboard={() => setActiveModal('leaderboard')}
-          onOpenFriends={() => setActiveModal('friends')}
-          hasPendingChallenges={directChallenges.some((c) => c.status === 'pending')}
-          onOpenStats={() => setActiveModal('stats')}
-          onOpenProfile={() => setActiveModal('profile')}
-          onOpenMultiplayer={handleOpenMultiplayerLobby}
-          onToggleSound={() =>
-            setPlayerState((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }))
-          }
-          isMobileFrame={isMobileFrame}
-          onToggleMobileFrame={() => setIsMobileFrame((v) => !v)}
-          hasUnclaimedQuests={hasUnclaimedQuests}
-          hasUnclaimedAchievements={hasUnclaimedAchievements}
-          hasUnclaimedDailyReward={playerState.lastDailyClaim !== new Date().toISOString().split('T')[0]}
-          onOpenDailyRewards={() => setShowDailyBonusModal(true)}
-          onOpenLuckySpin={() => setShowLuckySpinModal(true)}
-          hasFreeLuckySpin={localStorage.getItem('star_tap_last_spin_date') !== new Date().toISOString().split('T')[0]}
-        />
+        {/* Top Header Navigation (Hidden during active matches for clean AAA HUD) */}
+        {!isPlaying && (
+          <HeaderHUD
+            playerState={playerState}
+            gameMode={gameMode}
+            setGameMode={setGameMode}
+            isPlaying={isPlaying}
+            onOpenShop={() => setActiveModal('shop')}
+            onOpenQuests={() => setActiveModal('quests')}
+            onOpenAchievements={() => setActiveModal('achievements')}
+            onOpenLeaderboard={() => setActiveModal('leaderboard')}
+            onOpenFriends={() => setActiveModal('friends')}
+            onOpenCampaign={() => setActiveModal('campaign')}
+            onOpenTalents={() => setActiveModal('talents')}
+            onOpenCosmicPass={() => setActiveModal('cosmic_pass')}
+            onOpenConstellations={() => setActiveModal('constellations')}
+            hasPendingChallenges={directChallenges.some((c) => c.status === 'pending')}
+            onOpenStats={() => setActiveModal('stats')}
+            onOpenProfile={() => setActiveModal('profile')}
+            onOpenMultiplayer={handleOpenMultiplayerLobby}
+            onToggleSound={() =>
+              setPlayerState((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }))
+            }
+            isMobileFrame={isMobileFrame}
+            onToggleMobileFrame={() => setIsMobileFrame((v) => !v)}
+            hasUnclaimedQuests={hasUnclaimedQuests}
+            hasUnclaimedAchievements={hasUnclaimedAchievements}
+            hasUnclaimedDailyReward={playerState.lastDailyClaim !== new Date().toISOString().split('T')[0]}
+            onOpenDailyRewards={() => setShowDailyBonusModal(true)}
+            onOpenLuckySpin={() => setShowLuckySpinModal(true)}
+            hasFreeLuckySpin={localStorage.getItem('star_tap_last_spin_date') !== new Date().toISOString().split('T')[0]}
+            hasPendingUpdate={hasPendingUpdate}
+            onOpenUpdateModal={() => setShowUpdateModal(true)}
+          />
+        )}
 
         {/* Core Gameboard Component */}
         <main className="relative flex-1 w-full h-full overflow-hidden">
@@ -1597,11 +2121,26 @@ export default function App() {
             gameMode={gameMode}
             setGameMode={setGameMode}
             playerState={playerState}
+            campaignLevel={activeCampaignLevel}
             duelGhostRival={duelGhostRival}
             onSelectDuelRival={() => setActiveModal('leaderboard')}
             multiplayerOpponent={activeMultiplayerOpponent}
             multiplayerArena={activeMultiplayerArena}
             onOpenMultiplayerLobby={handleOpenMultiplayerLobby}
+            onOpenShop={() => setActiveModal('shop')}
+            onOpenQuests={() => setActiveModal('quests')}
+            onOpenAchievements={() => setActiveModal('achievements')}
+            onOpenLeaderboard={() => setActiveModal('leaderboard')}
+            onOpenFriends={() => setActiveModal('friends')}
+            onOpenCampaign={() => setActiveModal('campaign')}
+            onOpenTalents={() => setActiveModal('talents')}
+            onOpenCosmicPass={() => setActiveModal('cosmic_pass')}
+            onOpenDailyRewards={() => setShowDailyBonusModal(true)}
+            onOpenLuckySpin={() => setShowLuckySpinModal(true)}
+            hasUnclaimedQuests={hasUnclaimedQuests}
+            hasUnclaimedAchievements={hasUnclaimedAchievements}
+            hasUnclaimedDailyReward={playerState.lastDailyClaim !== new Date().toISOString().split('T')[0]}
+            hasFreeLuckySpin={localStorage.getItem('star_tap_last_spin_date') !== new Date().toISOString().split('T')[0]}
             onMultiplayerGameOver={handleMultiplayerGameOver}
             onGameOver={handleGameOver}
             onStartGame={handleStartGame}
@@ -1633,6 +2172,11 @@ export default function App() {
           item={activeAchievementToast}
           lang={playerState.language || 'es'}
           onClose={() => setActiveAchievementToast(null)}
+          onOpenModal={(type) => {
+            setActiveAchievementToast(null);
+            if (type === 'achievement') setActiveModal('achievements');
+            if (type === 'quest') setActiveModal('quests');
+          }}
         />
       )}
 
@@ -1647,11 +2191,44 @@ export default function App() {
           didLevelUp={gameOverData.didLevelUp}
           newLevel={gameOverData.newLevel}
           duelResult={gameOverData.duelResult}
+          campaignResult={gameOverData.campaignResult}
           onPlayAgain={handleStartGame}
           onGoHome={() => setGameOverData(null)}
           onDoubleCoins={handleDoubleCoins}
           hasDoubledCoins={gameOverData.hasDoubledCoins}
           language={playerState.language}
+        />
+      )}
+
+      {activeModal === 'campaign' && (
+        <CampaignMapModal
+          playerState={playerState}
+          language={playerState.language}
+          onClose={() => setActiveModal(null)}
+          onStartLevel={handleStartCampaignLevel}
+          onOpenTalents={() => setActiveModal('talents')}
+        />
+      )}
+
+      {activeModal === 'talents' && (
+        <TalentsModal
+          playerState={playerState}
+          language={playerState.language}
+          onClose={() => setActiveModal(null)}
+          onUpgradeTalent={handleUpgradeTalent}
+          onResetTalents={handleResetTalents}
+          onBuyTalentPoint={handleBuyTalentPoint}
+        />
+      )}
+
+      {activeModal === 'cosmic_pass' && (
+        <CosmicPassModal
+          playerState={playerState}
+          language={playerState.language}
+          onClose={() => setActiveModal(null)}
+          onClaimReward={handleClaimCosmicPassReward}
+          onClaimAll={handleClaimAllCosmicPassRewards}
+          onUnlockVipPass={handleUnlockVipPass}
         />
       )}
 
@@ -1699,17 +2276,20 @@ export default function App() {
           onAddFriend={handleQuickAddFriend}
           onOpenFriends={() => setActiveModal('friends')}
           onStartDuel={(entry) => {
-            setDuelGhostRival({
+            const rivalData: GhostRival = {
               id: entry.id,
               name: entry.name,
               score: entry.score,
               avatar: entry.avatar || '⭐',
               flag: entry.flag || '🌍',
               level: entry.level || 1,
-            });
+            };
+            setDuelGhostRival(rivalData);
             setGameMode('duel');
             setActiveModal(null);
-            setIsPlaying(false);
+            setGameOverData(null);
+            setIsDuelWithFriend(false);
+            setShowDuelVersusIntro(true);
           }}
         />
       )}
@@ -1725,6 +2305,15 @@ export default function App() {
           onUpdateFriends={handleUpdateFriends}
           onUpdateChallenges={handleUpdateChallenges}
           onStartDirectMatch={handleStartDirectMatch}
+        />
+      )}
+
+      {activeModal === 'constellations' && (
+        <ConstellationsModal
+          playerState={playerState}
+          onClose={() => setActiveModal(null)}
+          onUpdatePlayerState={setPlayerState}
+          onStartGame={() => handleStartGame()}
         />
       )}
 
@@ -1748,7 +2337,12 @@ export default function App() {
           onOpenEuConsent={() => setShowEuConsentModal(true)}
           onOpenAvatarSelector={() => setActiveModal('avatar')}
           onOpenFriends={() => setActiveModal('friends')}
+          onOpenConstellations={() => setActiveModal('constellations')}
           onReplayTutorial={handleReplayTutorial}
+          onOpenUpdateModal={() => setShowUpdateModal(true)}
+          hasPendingUpdate={hasPendingUpdate}
+          updateVersion={appUpdateInfo?.version}
+          onCheckUpdatesTrigger={() => runUpdateCheck(true)}
         />
       )}
 
@@ -1760,6 +2354,18 @@ export default function App() {
             handleSelectAvatar(avatarId);
             setActiveModal('profile');
           }}
+          onBuyAvatar={(avatarItem) => {
+            handleBuyOrEquipItem({
+              id: avatarItem.id,
+              name: avatarItem.name[playerState.language || 'es'],
+              description: avatarItem.description?.[playerState.language || 'es'] || '',
+              type: 'avatar',
+              price: avatarItem.price || 0,
+              icon: avatarItem.emoji,
+              unlocked: false,
+            });
+          }}
+          onOpenShop={() => setActiveModal('shop')}
         />
       )}
 
@@ -1831,7 +2437,7 @@ export default function App() {
         />
       )}
 
-      {/* Cinematic Versus 3-2-1 Showdown Screen */}
+      {/* Cinematic Versus 3-2-1 Showdown Screen (Multiplayer) */}
       {showVersusShowdown && activeMultiplayerArena && activeMultiplayerOpponent && (
         <MultiplayerVersusShowdown
           playerState={playerState}
@@ -1839,6 +2445,17 @@ export default function App() {
           arena={activeMultiplayerArena}
           onIntroComplete={handleShowdownIntroComplete}
           language={playerState.language}
+        />
+      )}
+
+      {/* Cinematic Versus 3-2-1 Duel Showdown Screen (Ghost Rivals & Friends) */}
+      {showDuelVersusIntro && duelGhostRival && (
+        <DuelVersusShowdown
+          playerState={playerState}
+          rival={duelGhostRival}
+          isFriend={isDuelWithFriend}
+          language={playerState.language}
+          onIntroComplete={handleDuelIntroComplete}
         />
       )}
 
@@ -1869,6 +2486,17 @@ export default function App() {
         <SplashScreen
           onFinish={handleFinishSplash}
           language={playerState.language}
+        />
+      )}
+
+      {/* App Version & APK Update Modal */}
+      {showUpdateModal && appUpdateInfo && (
+        <AppUpdateModal
+          updateInfo={appUpdateInfo}
+          language={playerState.language}
+          onClose={() => setShowUpdateModal(false)}
+          onClaimReward={handleClaimUpdateReward}
+          onRefreshCheck={() => runUpdateCheck(true)}
         />
       )}
     </div>

@@ -1,4 +1,5 @@
 import { PlayerState, ShopItem, Achievement, Quest, LeaderboardEntry } from '../types';
+import { INITIAL_COSMIC_PASS } from '../data/cosmicPass';
 
 const LOCAL_STORAGE_KEY = 'star_tap_arcade_player_state_v1';
 const LOCAL_LEADERBOARD_KEY = 'star_tap_arcade_leaderboard_v1';
@@ -9,6 +10,22 @@ export const INITIAL_PLAYER_STATE: PlayerState = {
   coins: 50,
   xp: 0,
   level: 1,
+  talentPoints: 1,
+  talents: {
+    cosmic_reflexes: 0,
+    gravity_pull: 0,
+    astral_luck: 0,
+    fever_overdrive: 0,
+    singularity_shield: 0,
+    stardust_harvest: 0,
+  },
+  campaignProgress: {
+    unlockedLevel: 1,
+    levelStars: {},
+    levelHighScores: {},
+    claimedChapterRewards: [],
+  },
+  cosmicPass: INITIAL_COSMIC_PASS,
   language: 'es',
   equippedSkin: 'skin_neon',
   equippedTheme: 'theme_space',
@@ -269,6 +286,73 @@ export const SHOP_ITEMS: ShopItem[] = [
     level: 0,
     maxLevel: 5,
     effectDescription: 'Nivel actual: +{level} usos de Imán por partida',
+  },
+
+  // EXCLUSIVE ANIMATED AVATARS (TIENDA)
+  {
+    id: 'avatar_cyber_valkyrie',
+    name: 'Valkiria Cyberpunk (Animada)',
+    description: 'Guerrera aérea con visor holográfico y alas cibernéticas de plasma en movimiento.',
+    type: 'avatar',
+    price: 1800,
+    icon: '🧚‍♀️',
+    unlocked: false,
+    color: '#06b6d4',
+    isAnimated: true,
+    rarity: 'epic',
+    effectDescription: '✨ Avatar Animado + 5% Multiplicador de XP',
+  },
+  {
+    id: 'avatar_infernal_phoenix',
+    name: 'Fénix Ígneo Eterno (Animado)',
+    description: 'Ave sagrada renacida del núcleo estelar con llamas vivas en constante movimiento.',
+    type: 'avatar',
+    price: 2500,
+    icon: '🔥',
+    unlocked: false,
+    color: '#f97316',
+    isAnimated: true,
+    rarity: 'epic',
+    effectDescription: '✨ Avatar Animado + Estela ígnea en combos',
+  },
+  {
+    id: 'avatar_mecha_titan',
+    name: 'Titán Mecha X-99 (Animado)',
+    description: 'Blindaje biomecánico con reactor de plasma y descargas voltaicas continuas.',
+    type: 'avatar',
+    price: 3200,
+    icon: '🤖',
+    unlocked: false,
+    color: '#3b82f6',
+    isAnimated: true,
+    rarity: 'legendary',
+    effectDescription: '✨ Avatar Animado + Aura eléctrica reactiva',
+  },
+  {
+    id: 'avatar_void_overlord',
+    name: 'Soberano del Vacío (Animado)',
+    description: 'Entidad interdimensional envuelta en un vórtice gravitacional de materia oscura.',
+    type: 'avatar',
+    price: 4500,
+    icon: '🌌',
+    unlocked: false,
+    color: '#c026d3',
+    isAnimated: true,
+    rarity: 'legendary',
+    effectDescription: '✨ Avatar Animado + Vórtice gravitacional continuo',
+  },
+  {
+    id: 'avatar_golden_emperor',
+    name: 'Emperador Solar Prime (Mítico)',
+    description: 'Monarca supremo del cosmos con corona de radiación solar y oro puro en rotación.',
+    type: 'avatar',
+    price: 6000,
+    icon: '👑',
+    unlocked: false,
+    color: '#facc15',
+    isAnimated: true,
+    rarity: 'mythic',
+    effectDescription: '✨ Avatar Mítico Animado + 10% Monedas en todas las partidas',
   },
 ];
 
@@ -767,6 +851,33 @@ export function loadPlayerState(): PlayerState {
       return {
         ...INITIAL_PLAYER_STATE,
         ...parsed,
+        talentPoints: parsed.talentPoints !== undefined ? parsed.talentPoints : INITIAL_PLAYER_STATE.talentPoints,
+        talents: {
+          ...INITIAL_PLAYER_STATE.talents,
+          ...(parsed.talents || {}),
+        },
+        campaignProgress: {
+          ...INITIAL_PLAYER_STATE.campaignProgress,
+          ...(parsed.campaignProgress || {}),
+          levelStars: {
+            ...(INITIAL_PLAYER_STATE.campaignProgress?.levelStars || {}),
+            ...(parsed.campaignProgress?.levelStars || {}),
+          },
+          levelHighScores: {
+            ...(INITIAL_PLAYER_STATE.campaignProgress?.levelHighScores || {}),
+            ...(parsed.campaignProgress?.levelHighScores || {}),
+          },
+          claimedChapterRewards: [
+            ...(INITIAL_PLAYER_STATE.campaignProgress?.claimedChapterRewards || []),
+            ...(parsed.campaignProgress?.claimedChapterRewards || []),
+          ],
+        },
+        cosmicPass: {
+          ...INITIAL_COSMIC_PASS,
+          ...(parsed.cosmicPass || {}),
+          claimedFreeTiers: parsed.cosmicPass?.claimedFreeTiers || [],
+          claimedVipTiers: parsed.cosmicPass?.claimedVipTiers || [],
+        },
         stats: {
           ...INITIAL_PLAYER_STATE.stats,
           ...(parsed.stats || {}),

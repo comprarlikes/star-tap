@@ -3,6 +3,7 @@ import { Friend, DirectChallenge, PlayerState, LeaderboardEntry, GameMode } from
 import { soundManager } from '../services/sound';
 import { hapticManager } from '../services/haptics';
 import { getAvatarById } from '../data/avatars';
+import { AnimatedAvatar } from './AnimatedAvatar';
 import { getMyPlayerCode, addFriendByIdOrName, createDirectChallenge } from '../services/friends';
 import { t } from '../i18n';
 import {
@@ -450,12 +451,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                       {/* Left: Avatar & Identity */}
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="relative shrink-0">
-                          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${avatarData.gradient} border ${avatarData.borderColor} flex items-center justify-center text-2xl shadow-md`}>
-                            <span>{avatarData.emoji}</span>
-                          </div>
+                          <AnimatedAvatar avatarItem={avatarData} size="md" showBadge={false} />
                           {/* Online status indicator badge */}
                           <span
-                            className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-slate-950 ${
+                            className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-slate-950 z-20 ${
                               isOnline ? 'bg-emerald-400' : isInGame ? 'bg-amber-400 animate-pulse' : 'bg-slate-500'
                             }`}
                             title={isOnline ? 'En línea' : isInGame ? 'En partida' : 'Desconectado'}

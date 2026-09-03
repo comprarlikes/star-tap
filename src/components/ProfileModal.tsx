@@ -4,7 +4,36 @@ import { PlayerState } from '../types';
 import { soundManager } from '../services/sound';
 import { hapticManager } from '../services/haptics';
 import { getAvatarById } from '../data/avatars';
-import { User, X, Check, Award, Sparkles, Shield, Star, Coins, Cloud, Globe, Settings, Vibrate, Smartphone, ShieldCheck, UserPlus, LogIn, UserCheck, Compass, Bell, BellRing, Copy, Users } from 'lucide-react';
+import { updateService, CURRENT_APP_VERSION, CURRENT_BUILD_NUMBER } from '../services/updateService';
+import { AnimatedAvatar } from './AnimatedAvatar';
+import { 
+  User, 
+  X, 
+  Check, 
+  Award, 
+  Sparkles, 
+  Shield, 
+  Star, 
+  Coins, 
+  Cloud, 
+  Globe, 
+  Settings, 
+  Vibrate, 
+  Smartphone, 
+  ShieldCheck, 
+  UserPlus, 
+  LogIn, 
+  UserCheck, 
+  Compass, 
+  Bell, 
+  BellRing, 
+  Copy, 
+  Users,
+  Download,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle2
+} from 'lucide-react';
 import { getMyPlayerCode } from '../services/friends';
 import { t, Language } from '../i18n';
 
@@ -20,7 +49,12 @@ interface ProfileModalProps {
   onOpenEuConsent?: () => void;
   onOpenAvatarSelector?: () => void;
   onOpenFriends?: () => void;
+  onOpenConstellations?: () => void;
   onReplayTutorial?: () => void;
+  onOpenUpdateModal?: () => void;
+  hasPendingUpdate?: boolean;
+  updateVersion?: string;
+  onCheckUpdatesTrigger?: () => Promise<boolean>;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -35,17 +69,64 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onOpenEuConsent,
   onOpenAvatarSelector,
   onOpenFriends,
+  onOpenConstellations,
   onReplayTutorial,
+  onOpenUpdateModal,
+  hasPendingUpdate = false,
+  updateVersion,
+  onCheckUpdatesTrigger,
 }) => {
   const [nameInput, setNameInput] = useState(playerState.name);
   const [isSaved, setIsSaved] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateCheckStatus, setUpdateCheckStatus] = useState<'idle' | 'upToDate' | 'hasUpdate'>('idle');
+  const [simulatedMode, setSimulatedMode] = useState<'none' | 'optional' | 'mandatory'>(() => {
+    return updateService.getSimulatedUpdate();
+  });
   const lang = playerState.language || 'es';
   const hapticsEnabled = playerState.hapticsEnabled ?? true;
   const questRemindersEnabled = playerState.questRemindersEnabled ?? true;
   const isRegistered = currentUser && !currentUser.isAnonymous;
   const currentAvatar = getAvatarById(playerState.avatar);
   const myPlayerCode = getMyPlayerCode(currentUser?.uid);
+
+  const handleManualCheckUpdates = async () => {
+    soundManager.playButtonClick();
+    hapticManager.lightTap();
+    setIsCheckingUpdate(true);
+    setUpdateCheckStatus('idle');
+
+    if (onCheckUpdatesTrigger) {
+      const hasUp = await onCheckUpdatesTrigger();
+      setIsCheckingUpdate(false);
+      if (hasUp) {
+        setUpdateCheckStatus('hasUpdate');
+        hapticManager.success();
+      } else {
+        setUpdateCheckStatus('upToDate');
+      }
+    } else {
+      const result = await updateService.checkForUpdates(true);
+      setIsCheckingUpdate(false);
+      if (result.hasUpdate) {
+        setUpdateCheckStatus('hasUpdate');
+        hapticManager.success();
+        onOpenUpdateModal?.();
+      } else {
+        setUpdateCheckStatus('upToDate');
+      }
+    }
+  };
+
+  const handleSetSimMode = (mode: 'none' | 'optional' | 'mandatory') => {
+    soundManager.playButtonClick();
+    updateService.setSimulatedUpdate(mode);
+    setSimulatedMode(mode);
+    if (mode !== 'none') {
+      onCheckUpdatesTrigger?.();
+    }
+  };
 
   const getTitleByLevel = (lvl: number) => {
     if (lvl >= 15) return t('levelTitleCosmicLegend', lang);
@@ -106,18 +187,24 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     onOpenAvatarSelector();
                   }
                 }}
-                className={`relative flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr ${currentAvatar.gradient} text-3xl shadow-xl border-2 ${currentAvatar.borderColor} flex-shrink-0 cursor-pointer hover:scale-105 transition-transform group`}
+                className="relative flex items-center justify-center flex-shrink-0 cursor-pointer hover:scale-105 transition-transform group"
                 title={t('changeAvatarBtn', lang)}
               >
-                <span>{currentAvatar.emoji}</span>
-                <span className="absolute -bottom-1 -right-1 bg-slate-950 text-amber-300 font-black text-[10px] px-1.5 py-0.2 rounded-full border border-amber-400 shadow">
+                <AnimatedAvatar avatarItem={currentAvatar} size="lg" showBadge={false} />
+                <span className="absolute -bottom-1 -right-1 bg-slate-950 text-amber-300 font-black text-[10px] px-1.5 py-0.2 rounded-full border border-amber-400 shadow z-20">
                   L{playerState.level}
                 </span>
-                <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-yellow-200 animate-pulse" />
               </div>
 
               <div className="flex flex-col flex-1 min-w-0">
-                <span className="text-lg font-black text-white tracking-wide truncate">{playerState.name}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-lg font-black text-white tracking-wide truncate">{playerState.name}</span>
+                  {currentAvatar.isAnimated && (
+                    <span className="text-[9px] bg-gradient-to-r from-cyan-500 to-fuchsia-500 text-white font-black px-1.5 py-0.2 rounded-md uppercase">
+                      ✨
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs font-extrabold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 w-fit mt-0.5">
                   {currentAvatar.name[lang]} • {getTitleByLevel(playerState.level)}
                 </span>
@@ -142,7 +229,42 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             )}
           </div>
 
-          {/* Account Registration / Login Card */}
+          {/* Cosmic Clan / Constellation Card */}
+          {onOpenConstellations && (
+            <div className="bg-gradient-to-r from-purple-950/70 via-indigo-950/70 to-slate-950 p-3.5 rounded-2xl border border-purple-500/30 flex items-center justify-between gap-3 shadow-md">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-500/20 text-cyan-300 border border-purple-400/30">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-black text-white flex items-center gap-1.5">
+                    {lang === 'es' ? 'Gremio Cósmico' : 'Cosmic Clan'}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/30 font-bold">
+                      {playerState.constellationId ? '⚔️ MIEMBRO' : 'LIBRE'}
+                    </span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {playerState.constellationId 
+                      ? (lang === 'es' ? 'Aporta puntos en batallas y guerras estelares' : 'Contribute points in clan wars & weekly chests') 
+                      : (lang === 'es' ? 'Únete a una constelación para ganar recompensas' : 'Join a constellation to earn weekly team perks')}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playButtonClick();
+                  onClose();
+                  onOpenConstellations();
+                }}
+                className="px-3 py-2 bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 hover:brightness-110 text-white font-black text-xs rounded-xl shadow border border-cyan-300/40 flex items-center gap-1.5 transition-all active:scale-95 shrink-0 cursor-pointer"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>{playerState.constellationId ? (lang === 'es' ? 'VER CLAN' : 'MY CLAN') : (lang === 'es' ? 'UNIRSE' : 'JOIN')}</span>
+              </button>
+            </div>
+          )}
           {onOpenAuth && (
             <div className="bg-slate-950/80 p-3.5 rounded-2xl border border-amber-500/30 flex items-center justify-between gap-3 shadow-md">
               <div className="flex items-center gap-2.5">
@@ -455,6 +577,122 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </button>
               </div>
             )}
+
+            {/* App Version & APK Updates Manager */}
+            <div className="pt-3 border-t border-slate-800/80 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+                  <label className="text-xs font-extrabold text-slate-300 uppercase tracking-wider">
+                    {t('appUpdatesTitle', lang)}
+                  </label>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-slate-950 px-2 py-0.5 rounded-full border border-slate-700 text-cyan-300">
+                  v{CURRENT_APP_VERSION} (b{CURRENT_BUILD_NUMBER})
+                </span>
+              </div>
+
+              {/* Status Info Box */}
+              <div className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-medium">
+                    {lang === 'es' ? 'Canal de Distribución:' : 'Distribution Channel:'}
+                  </span>
+                  <span className="text-white font-bold flex items-center gap-1">
+                    <span>APK Android / PWA</span>
+                  </span>
+                </div>
+
+                {hasPendingUpdate && (
+                  <div className="p-2.5 bg-cyan-950/50 border border-cyan-500/40 rounded-xl flex items-center justify-between gap-2 animate-fade-in">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <div className="text-left">
+                        <span className="text-xs font-bold text-cyan-200 block">
+                          {t('updateAvailableBadge', lang)}
+                        </span>
+                        <span className="text-[10px] text-cyan-400/80 font-mono">
+                          v{updateVersion || '2.5.0'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundManager.playButtonClick();
+                        onClose();
+                        onOpenUpdateModal?.();
+                      }}
+                      className="py-1.5 px-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-black text-xs rounded-xl shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
+                    >
+                      {t('viewUpdateBtn', lang)} 🚀
+                    </button>
+                  </div>
+                )}
+
+                {updateCheckStatus === 'upToDate' && (
+                  <div className="p-2 bg-emerald-950/40 border border-emerald-500/30 rounded-xl flex items-center gap-2 text-xs text-emerald-300 animate-fade-in">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>{t('upToDateMsg', lang)}</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleManualCheckUpdates}
+                  disabled={isCheckingUpdate}
+                  className="w-full py-2.5 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
+                  <span>
+                    {isCheckingUpdate ? t('checkingUpdates', lang) : t('checkForUpdatesBtn', lang)}
+                  </span>
+                </button>
+              </div>
+
+              {/* Developer / Testing Simulator Controls */}
+              <div className="p-2.5 bg-slate-950/40 rounded-xl border border-slate-800/60 space-y-1.5">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  🛠️ {t('simulateUpdateLabel', lang)}
+                </span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSetSimMode('none')}
+                    className={`py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                      simulatedMode === 'none'
+                        ? 'bg-slate-700 text-white border border-slate-500'
+                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    {t('simulateNone', lang)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetSimMode('optional')}
+                    className={`py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                      simulatedMode === 'optional'
+                        ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400 shadow-sm'
+                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    {t('simulateOptional', lang)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetSimMode('mandatory')}
+                    className={`py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                      simulatedMode === 'mandatory'
+                        ? 'bg-red-500/30 text-red-200 border border-red-400 shadow-sm'
+                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    {t('simulateMandatory', lang)}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Firebase Cloud Sync Status */}
