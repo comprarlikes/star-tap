@@ -6,17 +6,10 @@ import { AnimatedAvatar } from './AnimatedAvatar';
 import { t } from '../i18n';
 import { 
   Trophy, 
-  ShoppingBag, 
   Target, 
   Award, 
   BarChart2, 
-  Volume2, 
-  VolumeX, 
   Zap, 
-  Swords, 
-  Smartphone, 
-  Monitor, 
-  User, 
   Gift,
   Users
 } from 'lucide-react';
@@ -49,8 +42,6 @@ interface HeaderHUDProps {
   onOpenConstellations?: () => void;
   onOpenAd?: () => void;
   hasPendingChallenges?: boolean;
-  hasPendingUpdate?: boolean;
-  onOpenUpdateModal?: () => void;
 }
 
 export const HeaderHUD: React.FC<HeaderHUDProps> = ({
@@ -81,8 +72,6 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
   onOpenConstellations,
   onOpenAd,
   hasPendingChallenges = false,
-  hasPendingUpdate = false,
-  onOpenUpdateModal,
 }) => {
   const currentXpTarget = getXpForNextLevel(playerState.level);
   const xpPercent = Math.min(100, Math.floor((playerState.xp / currentXpTarget) * 100));
@@ -142,35 +131,10 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
             </span>
           </div>
         )}
-
-        {/* Pending APK Update Indicator Button */}
-        {hasPendingUpdate && onOpenUpdateModal && (
-          <button
-            type="button"
-            onClick={onOpenUpdateModal}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500/30 via-purple-500/30 to-cyan-500/30 border border-cyan-400/60 hover:border-cyan-300 px-2 sm:px-2.5 py-1 rounded-2xl text-[10px] sm:text-[11px] font-black text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)] animate-pulse hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
-            title="Nueva versión APK disponible"
-          >
-            <span>🚀</span>
-            <span className="hidden xs:inline">{lang === 'es' ? 'Actualizar' : 'Update'}</span>
-          </button>
-        )}
       </div>
 
       {/* Right Action Icons & Modals (Horizontal Scrollable Strip on small viewports) */}
       <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5 max-w-[62vw] sm:max-w-none flex-nowrap" data-tutorial="shop-buttons">
-        {/* Campaign Adventure Map Button */}
-        {onOpenCampaign && (
-          <button
-            onClick={onOpenCampaign}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-110 text-slate-950 font-black rounded-xl shadow-[0_4px_12px_rgba(245,158,11,0.35)] transition-all active:scale-95 flex items-center gap-1.5 text-xs border border-yellow-200/70 shrink-0 cursor-pointer"
-            title={lang === 'en' ? 'Constellation Adventure Campaign' : 'Saga de Constelaciones / Campaña'}
-          >
-            <span className="text-xs sm:text-sm">🗺️</span>
-            <span className="hidden xl:inline text-[11px] font-black uppercase tracking-wider">{lang === 'en' ? 'Campaign' : 'Campaña'}</span>
-          </button>
-        )}
-
         {/* Cosmic Talents Tree Button */}
         {onOpenTalents && (
           <button
@@ -192,18 +156,6 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           </button>
         )}
 
-        {/* Cosmic Season Pass Button */}
-        {onOpenCosmicPass && (
-          <button
-            onClick={onOpenCosmicPass}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 hover:brightness-110 text-white font-black rounded-xl shadow-[0_4px_12px_rgba(236,72,153,0.35)] transition-all active:scale-95 flex items-center gap-1.5 text-xs border border-pink-300/50 shrink-0 cursor-pointer"
-            title={lang === 'en' ? 'Cosmic Season Pass' : 'Pase de Temporada Cósmico'}
-          >
-            <span className="text-xs sm:text-sm">👑</span>
-            <span className="hidden xl:inline text-[11px] font-black uppercase tracking-wider">{lang === 'en' ? 'Pass' : 'Pase'}</span>
-          </button>
-        )}
-
         {/* Constellations / Cosmic Clan Button */}
         {onOpenConstellations && (
           <button
@@ -216,16 +168,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           </button>
         )}
 
-        {onOpenMultiplayer && (
-          <button
-            onClick={onOpenMultiplayer}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:brightness-110 text-white font-black rounded-xl shadow-[0_4px_12px_rgba(244,63,94,0.35)] transition-all active:scale-95 flex items-center gap-1.5 text-xs border border-pink-300/50 shrink-0 cursor-pointer"
-            title="Multijugador 1v1 Online"
-          >
-            <Swords className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-300" />
-            <span className="hidden lg:inline text-[11px] font-black">1v1</span>
-          </button>
-        )}
+        {/* Daily Login Reward Button */}
         {onOpenDailyRewards && (
           <button
             onClick={onOpenDailyRewards}
@@ -243,23 +186,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           </button>
         )}
 
-        {onOpenLuckySpin && (
-          <button
-            onClick={onOpenLuckySpin}
-            className={`relative p-1.5 sm:p-2 rounded-xl border transition-transform active:scale-95 shadow-sm shrink-0 cursor-pointer ${
-              hasFreeLuckySpin
-                ? 'bg-gradient-to-tr from-purple-500 to-pink-500 text-white border-pink-300 animate-pulse'
-                : 'bg-slate-800/70 hover:bg-slate-700/80 text-purple-300 border-slate-700/60'
-            }`}
-            title="Ruleta Cósmica de la Suerte"
-          >
-            <span className="text-xs sm:text-sm select-none">🎡</span>
-            {hasFreeLuckySpin && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-pink-500 rounded-full animate-ping" />
-            )}
-          </button>
-        )}
-
+        {/* Quests Button */}
         <button
           onClick={onOpenQuests}
           className="relative p-1.5 sm:p-2 bg-slate-800/70 hover:bg-slate-700/80 text-amber-300 rounded-xl border border-slate-700/60 transition-transform active:scale-95 shadow-sm shrink-0 cursor-pointer"
@@ -269,15 +196,6 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           {hasUnclaimedQuests && (
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full animate-ping" />
           )}
-        </button>
-
-        <button
-          onClick={onOpenShop}
-          className="p-1.5 sm:p-2 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 text-slate-950 font-extrabold rounded-xl hover:brightness-110 shadow-md transition-transform active:scale-95 flex items-center gap-1 text-xs shrink-0 cursor-pointer"
-          title={t('shop', lang)}
-        >
-          <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span className="hidden sm:inline">{t('shop', lang)}</span>
         </button>
 
         <button
@@ -324,33 +242,6 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           <BarChart2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
-        <button
-          onClick={onOpenProfile}
-          className="p-1.5 sm:p-2 bg-slate-800/70 hover:bg-slate-700/80 text-amber-400 rounded-xl border border-slate-700/60 transition-transform active:scale-95 shadow-sm shrink-0 cursor-pointer"
-          title={t('profile', lang)}
-        >
-          <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        </button>
-
-        <button
-          onClick={onToggleSound}
-          className={`p-1.5 sm:p-2 rounded-xl border transition-transform active:scale-95 shadow-sm shrink-0 cursor-pointer ${
-            playerState.soundEnabled 
-              ? 'bg-slate-800/70 text-emerald-400 border-slate-700/60' 
-              : 'bg-slate-800/70 text-slate-500 border-slate-700/60'
-          }`}
-          title={playerState.soundEnabled ? 'Sonido Activado' : 'Sonido Silenciado'}
-        >
-          {playerState.soundEnabled ? <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-        </button>
-
-        <button
-          onClick={onToggleMobileFrame}
-          className="p-1.5 sm:p-2 bg-slate-800/70 hover:bg-slate-700/80 text-purple-400 rounded-xl border border-slate-700/60 transition-transform active:scale-95 hidden md:flex shadow-sm shrink-0 cursor-pointer"
-          title={isMobileFrame ? 'Pantalla Completa' : 'Modo Celular Android'}
-        >
-          {isMobileFrame ? <Monitor className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-        </button>
       </div>
     </header>
   );

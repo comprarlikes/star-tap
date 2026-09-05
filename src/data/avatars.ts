@@ -496,13 +496,17 @@ export function getAvatarById(id?: string): AvatarItem {
   const byEmoji = AVATARS.find((a) => a.emoji === id);
   if (byEmoji) return byEmoji;
 
+  // If it looks like an identifier rather than an emoji (e.g. contains '_' or length > 6)
+  const isIdentifier = id.includes('_') || id.length > 6;
+  const displayEmoji = isIdentifier ? '⭐' : id;
+
   // Custom emoji or unlisted avatar item fallback
   return {
     id: `custom_${id}`,
-    name: { es: 'Rival Estelar', en: 'Stellar Rival' },
+    name: { es: 'Piloto Estelar', en: 'Stellar Pilot' },
     category: 'legends',
     categoryLabel: { es: 'Leyendas', en: 'Legends' },
-    emoji: id,
+    emoji: displayEmoji,
     gradient: 'from-purple-600 via-pink-600 to-indigo-700',
     borderColor: 'border-purple-300',
     glowColor: 'rgba(168, 85, 247, 0.6)',

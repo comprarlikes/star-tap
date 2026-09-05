@@ -9,7 +9,7 @@ import { ReviveModal } from './ReviveModal';
 import { MultiplayerBattleHUD } from './MultiplayerBattleHUD';
 import { getRandomOpponentEmote } from '../services/multiplayerBotPool';
 import { getTalentValue } from '../data/talents';
-import { MainMenuTopShortcuts, MainMenuBottomShortcuts, MainMenuShortcuts } from './MainMenuShortcuts';
+import { MainMenuTopShortcuts, MainMenuBottomShortcuts } from './MainMenuShortcuts';
 import { Heart, Shield, Zap, Sparkles, AlertTriangle, Swords, Ghost, Users, Trophy, Gamepad2, X, Check, Clock, Flame, Smile, LogOut, Pause } from 'lucide-react';
 import { t } from '../i18n';
 
@@ -408,6 +408,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       hasUsedReviveRef.current = false;
       setIsPaused(false);
       setShowReviveModal(false);
+
+      // If entering directly from MultiplayerVersusShowdown, the cinematic 3-2-1 countdown already completed
+      if (multiplayerOpponent) {
+        setMatchCountdown(null);
+        return;
+      }
+
       setMatchCountdown(3);
       soundManager.playCountdownTick();
 
@@ -441,7 +448,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       setIsPaused(false);
       setShowReviveModal(false);
     }
-  }, [isPlaying, resetMatch]);
+  }, [isPlaying, resetMatch, multiplayerOpponent]);
 
   // Report live progress during gameplay for real-time achievement checking
   useEffect(() => {
@@ -1677,7 +1684,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         {/* Pre-Game Start Screen Prompt if not actively playing */}
         {!isPlaying && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-start sm:justify-center p-2.5 sm:p-4 overflow-y-auto overscroll-contain bg-slate-950/75 backdrop-blur-md text-center safe-pb">
-            {/* 1. Top 3 Red Dots Shortcuts: Ruleta Cósmica (Top-Left), Pase Cósmico (Top-Center), Tienda (Top-Right) */}
+            {/* 1. Top 3 Shortcuts: Ruleta Cósmica, Pase Cósmico, Tienda */}
             <MainMenuTopShortcuts
               playerState={playerState}
               onOpenLuckySpin={onOpenLuckySpin}
@@ -1906,7 +1913,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               )}
             </div>
 
-            {/* 2. Bottom 3 Red Dots Shortcuts: Campaña (Bottom-Left), Arena 1v1 (Bottom-Center), Misiones (Bottom-Right) */}
+            {/* 2. Bottom 3 Shortcuts: Campaña, Arena 1v1, Misiones */}
             <MainMenuBottomShortcuts
               playerState={playerState}
               onOpenCampaign={onOpenCampaign}

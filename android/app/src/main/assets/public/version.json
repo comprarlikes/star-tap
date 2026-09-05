@@ -1,32 +1,9 @@
 {
   "version": "2.5.0",
   "buildNumber": 250,
-  "minRequiredVersion": "2.4.0",
-  "minRequiredBuild": 240,
-  "forceUpdate": false,
-  "apkDownloadUrl": "https://github.com/startap-arcade/releases/download/v2.5.0/star-tap-arcade-v2.5.0.apk",
-  "fileSizeMb": 28.5,
-  "releaseDate": "2026-09-01",
-  "title": {
-    "es": "¡Nueva Versión Galáctica v2.5.0!",
-    "en": "New Galactic Version v2.5.0!"
-  },
-  "highlights": {
-    "es": [
-      "⚔️ Nuevo motor de emparejamiento 1v1 en tiempo real sin latencia",
-      "🏛️ Bóveda y Donaciones de Constelaciones con bonos de clan",
-      "✨ Recompensas exclusivas de Polvo Estelar y multiplicadores cósmicos",
-      "⚡ Optimización de FPS y rendimiento para pantallas de 120Hz",
-      "🛡️ Corrección de errores y mayor estabilidad en duelos"
-    ],
-    "en": [
-      "⚔️ New zero-latency real-time 1v1 matchmaking engine",
-      "🏛️ Constellation Clan Vault & Resource Donations with clan buffs",
-      "✨ Exclusive Stardust rewards and cosmic multipliers",
-      "⚡ 120Hz display optimizations and smooth FPS performance",
-      "🛡️ Bug fixes and enhanced stability in duels"
-    ]
-  },
-  "rewardCoins": 500,
-  "rewardStardust": 100
+  "distribution": "Google Play Store",
+  "bundleFormat": "AAB",
+  "autoUpdateEnabled": true,
+  "releaseDate": "2026-09-05",
+  "playStoreUrl": "https://play.google.com/store/apps/details?id=com.startap.arcade"
 }

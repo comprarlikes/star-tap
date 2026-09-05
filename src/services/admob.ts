@@ -8,7 +8,9 @@ import {
   AdMobRewardItem,
   AdMobError,
   AdOptions,
-  RewardAdOptions
+  RewardAdOptions,
+  AdmobConsentStatus,
+  AdmobConsentDebugGeography
 } from '@capacitor-community/admob';
 import { Capacitor } from '@capacitor/core';
 
@@ -48,6 +50,8 @@ export function isAdTesting(): boolean {
  */
 export interface AdMobState {
   isInitialized: boolean;
+  consentStatus: 'UNKNOWN' | 'REQUIRED' | 'OBTAINED' | 'NOT_REQUIRED';
+  canRequestAds: boolean;
   isInterstitialLoading: boolean;
   isInterstitialReady: boolean;
   isInterstitialShowing: boolean;
@@ -70,6 +74,8 @@ export interface InterstitialAdResult {
 
 let state: AdMobState = {
   isInitialized: false,
+  consentStatus: 'UNKNOWN',
+  canRequestAds: true,
   isInterstitialLoading: false,
   isInterstitialReady: false,
   isInterstitialShowing: false,
@@ -104,7 +110,8 @@ export function getAdMobState(): AdMobState {
 }
 
 /**
- * Initialize Google AdMob SDK on Native platforms
+ * Request UMP Consent & Initialize Google AdMob SDK on Native platforms
+ * Compliant with Google Play EU User Consent Policy (GDPR / ePrivacy)
  */
 let isInitInProgress = false;
 
@@ -120,6 +127,42 @@ export async function initializeAdMob(): Promise<boolean> {
 
   try {
     const isTest = isAdTesting();
+
+    // 1. Google UMP Consent Request
+    try {
+      console.log('[AdMob UMP] Requesting User Messaging Platform (UMP) consent info...');
+      const consentInfo = await AdMob.requestConsentInfo({
+        debugGeography: isTest ? AdmobConsentDebugGeography.EEA : AdmobConsentDebugGeography.DISABLED,
+        testDeviceIdentifiers: isTest ? ['EMULATOR'] : [],
+      });
+
+      console.log('[AdMob UMP] Consent status received:', consentInfo.status, 'Form available:', consentInfo.isConsentFormAvailable);
+      
+      let currentStatus: 'UNKNOWN' | 'REQUIRED' | 'OBTAINED' | 'NOT_REQUIRED' = 
+        consentInfo.status === AdmobConsentStatus.REQUIRED ? 'REQUIRED' :
+        consentInfo.status === AdmobConsentStatus.OBTAINED ? 'OBTAINED' :
+        consentInfo.status === AdmobConsentStatus.NOT_REQUIRED ? 'NOT_REQUIRED' : 'UNKNOWN';
+
+      // If consent form is required and available, show Google UMP modal
+      if (consentInfo.status === AdmobConsentStatus.REQUIRED && consentInfo.isConsentFormAvailable) {
+        console.log('[AdMob UMP] Presenting Google UMP Consent Form to user...');
+        const updatedInfo = await AdMob.showConsentForm();
+        currentStatus = 
+          updatedInfo.status === AdmobConsentStatus.REQUIRED ? 'REQUIRED' :
+          updatedInfo.status === AdmobConsentStatus.OBTAINED ? 'OBTAINED' :
+          updatedInfo.status === AdmobConsentStatus.NOT_REQUIRED ? 'NOT_REQUIRED' : 'UNKNOWN';
+        console.log('[AdMob UMP] User consent completed. Updated status:', updatedInfo.status);
+      }
+
+      updateState({
+        consentStatus: currentStatus,
+        canRequestAds: consentInfo.canRequestAds ?? true
+      });
+    } catch (consentErr: any) {
+      console.warn('[AdMob UMP] Consent request note (proceeding):', consentErr?.message || consentErr);
+    }
+
+    // 2. Initialize Mobile Ads SDK
     await AdMob.initialize({
       testingDevices: isTest ? ['EMULATOR'] : [],
       initializeForTesting: isTest,
@@ -133,6 +176,51 @@ export async function initializeAdMob(): Promise<boolean> {
     return false;
   } finally {
     isInitInProgress = false;
+  }
+}
+
+/**
+ * Re-open Google UMP Privacy Options / Consent Form
+ * Google EU User Consent Policy requires users to be able to revoke or modify consent at any time.
+ */
+export async function showPrivacyOptionsForm(): Promise<{ success: boolean; native: boolean }> {
+  if (!Capacitor.isNativePlatform()) {
+    // Non-native environment; caller can show web EuConsentModal
+    return { success: false, native: false };
+  }
+
+  try {
+    console.log('[AdMob UMP] Showing privacy options / consent form...');
+    const result = await AdMob.showConsentForm();
+    const updatedStatus = 
+      result.status === AdmobConsentStatus.REQUIRED ? 'REQUIRED' :
+      result.status === AdmobConsentStatus.OBTAINED ? 'OBTAINED' :
+      result.status === AdmobConsentStatus.NOT_REQUIRED ? 'NOT_REQUIRED' : 'UNKNOWN';
+    updateState({
+      consentStatus: updatedStatus,
+      canRequestAds: result.canRequestAds ?? true
+    });
+    return { success: true, native: true };
+  } catch (err: any) {
+    console.warn('[AdMob UMP] showConsentForm error, requesting info update:', err?.message || err);
+    try {
+      const isTest = isAdTesting();
+      const info = await AdMob.requestConsentInfo({
+        debugGeography: isTest ? AdmobConsentDebugGeography.EEA : AdmobConsentDebugGeography.DISABLED,
+        testDeviceIdentifiers: isTest ? ['EMULATOR'] : [],
+      });
+      if (info.isConsentFormAvailable) {
+        const res2 = await AdMob.showConsentForm();
+        updateState({
+          consentStatus: res2.status as any,
+          canRequestAds: res2.canRequestAds ?? true
+        });
+        return { success: true, native: true };
+      }
+    } catch (e2) {
+      console.warn('[AdMob UMP] Fallback consent form request error:', e2);
+    }
+    return { success: false, native: true };
   }
 }
 

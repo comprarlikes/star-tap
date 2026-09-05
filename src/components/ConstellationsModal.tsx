@@ -11,6 +11,7 @@ import {
   constellationService, 
   CONSTELLATION_CREATION_FEE 
 } from '../services/constellationService';
+import { AnimatedAvatar } from './AnimatedAvatar';
 import { soundManager } from '../services/sound';
 import { hapticManager } from '../services/haptics';
 import { 
@@ -126,7 +127,7 @@ export const ConstellationsModal: React.FC<ConstellationsModalProps> = ({
 
   useEffect(() => {
     refreshData();
-  }, [playerState.constellationId]);
+  }, [playerState.constellationId, playerState.avatar, playerState.name, playerState.level, playerState.trophies]);
 
   useEffect(() => {
     if (activeTab === 'chat' && chatEndRef.current) {
@@ -715,10 +716,15 @@ export const ConstellationsModal: React.FC<ConstellationsModalProps> = ({
                           className="p-2.5 bg-slate-900/80 rounded-2xl border border-slate-800 flex items-center justify-between gap-2"
                         >
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-lg relative">
-                              <span>{member.avatar}</span>
+                            <div className="relative shrink-0">
+                              <AnimatedAvatar 
+                                avatarId={member.avatar} 
+                                size="sm" 
+                                showBadge={false} 
+                                showGlow={false} 
+                              />
                               <span 
-                                className={`w-2.5 h-2.5 rounded-full absolute -bottom-0.5 -right-0.5 border-2 border-slate-900 ${
+                                className={`w-2.5 h-2.5 rounded-full absolute -bottom-0.5 -right-0.5 border-2 border-slate-900 z-10 ${
                                   member.status === 'online' ? 'bg-emerald-400' : member.status === 'in_game' ? 'bg-amber-400' : 'bg-slate-500'
                                 }`} 
                               />
@@ -1043,7 +1049,14 @@ export const ConstellationsModal: React.FC<ConstellationsModalProps> = ({
                             <div className="p-3 bg-gradient-to-r from-purple-950/80 via-slate-900 to-indigo-950/80 border border-purple-500/40 rounded-2xl space-y-2 shadow-lg relative overflow-hidden">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xl p-1 bg-slate-950 rounded-xl border border-purple-500/30">{msg.senderAvatar}</span>
+                                  <div className="shrink-0">
+                                    <AnimatedAvatar 
+                                      avatarId={msg.senderAvatar} 
+                                      size="sm" 
+                                      showBadge={false} 
+                                      showGlow={false} 
+                                    />
+                                  </div>
                                   <div>
                                     <div className="flex items-center gap-1.5">
                                       <span className="text-xs font-black text-amber-300">{msg.senderName}</span>
@@ -1143,7 +1156,15 @@ export const ConstellationsModal: React.FC<ConstellationsModalProps> = ({
                             <div className="p-3 bg-gradient-to-r from-amber-950/80 via-slate-900 to-red-950/80 border border-amber-500/40 rounded-2xl space-y-2 shadow-lg">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xl p-1 bg-slate-950 rounded-xl border border-amber-500/40">⚔️</span>
+                                  <div className="relative shrink-0">
+                                    <AnimatedAvatar 
+                                      avatarId={msg.senderAvatar} 
+                                      size="sm" 
+                                      showBadge={false} 
+                                      showGlow={false} 
+                                    />
+                                    <span className="absolute -bottom-1 -right-1 text-[10px] bg-slate-950 rounded-full p-0.5 border border-amber-500/40">⚔️</span>
+                                  </div>
                                   <div>
                                     <div className="flex items-center gap-1.5">
                                       <span className="text-xs font-black text-amber-300">{msg.senderName}</span>
@@ -1204,9 +1225,14 @@ export const ConstellationsModal: React.FC<ConstellationsModalProps> = ({
                           ) : msg.type === 'sticker' && msg.sticker ? (
                             /* Cosmic Sticker Message */
                             <div className="p-3 bg-slate-900/90 rounded-2xl border border-indigo-500/30 flex items-start gap-3 shadow-md">
-                              <span className="text-xl p-1 bg-slate-950 rounded-xl border border-slate-800 shrink-0">
-                                {msg.senderAvatar}
-                              </span>
+                              <div className="shrink-0">
+                                <AnimatedAvatar 
+                                  avatarId={msg.senderAvatar} 
+                                  size="sm" 
+                                  showBadge={false} 
+                                  showGlow={false} 
+                                />
+                              </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between gap-1">
                                   <span className="text-xs font-black text-white truncate">{msg.senderName}</span>
@@ -1256,9 +1282,14 @@ export const ConstellationsModal: React.FC<ConstellationsModalProps> = ({
                           ) : (
                             /* Standard Message */
                             <div className="p-2.5 bg-slate-900/90 rounded-2xl border border-slate-800 flex items-start gap-2.5">
-                              <span className="text-xl p-1 bg-slate-950 rounded-xl border border-slate-800 shrink-0">
-                                {msg.senderAvatar}
-                              </span>
+                              <div className="shrink-0">
+                                <AnimatedAvatar 
+                                  avatarId={msg.senderAvatar} 
+                                  size="sm" 
+                                  showBadge={false} 
+                                  showGlow={false} 
+                                />
+                              </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between gap-1">
                                   <span className="text-xs font-black text-white truncate">{msg.senderName}</span>

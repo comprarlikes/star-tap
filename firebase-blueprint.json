@@ -6,16 +6,44 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "name": { "type": "string" },
+        "name": { "type": "string", "maxLength": 30 },
         "level": { "type": "number" },
         "xp": { "type": "number" },
         "coins": { "type": "number" },
+        "stardust": { "type": "number" },
+        "highScore": { "type": "number" },
         "dailyStreak": { "type": "number" },
-        "equippedTheme": { "type": "string" },
-        "equippedParticle": { "type": "string" },
-        "equippedCharm": { "type": "string" }
+        "equippedTheme": { "type": "string", "maxLength": 50 },
+        "equippedParticle": { "type": "string", "maxLength": 50 },
+        "equippedCharm": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name"]
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Global competitive high score leaderboard entry",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 30 },
+        "score": { "type": "number" },
+        "level": { "type": "number" },
+        "avatar": { "type": "string", "maxLength": 64 },
+        "flag": { "type": "string", "maxLength": 16 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "score"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Individual player profile and persistent offline-first save data"
+    },
+    "/leaderboard/{userId}": {
+      "schema": "LeaderboardEntry",
+      "description": "Public competitive leaderboard entry per authenticated user"
     }
   }
 }

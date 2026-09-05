@@ -14,8 +14,7 @@ import {
   DirectChallenge,
   CampaignLevel,
   CampaignProgress,
-  CosmicPassReward,
-  AppUpdateInfo
+  CosmicPassReward
 } from './types';
 import { 
   loadPlayerState, 
@@ -62,8 +61,6 @@ import { TalentsModal } from './components/TalentsModal';
 import { CosmicPassModal } from './components/CosmicPassModal';
 import { ConstellationsModal } from './components/ConstellationsModal';
 import { constellationService } from './services/constellationService';
-import { updateService } from './services/updateService';
-import { AppUpdateModal } from './components/AppUpdateModal';
 import { TutorialOverlay } from './components/TutorialOverlay';
 import { AuthModal } from './components/AuthModal';
 import { getAvatarById } from './data/avatars';
@@ -139,67 +136,6 @@ export default function App() {
   const [activeModal, setActiveModal] = useState<
     'shop' | 'quests' | 'achievements' | 'leaderboard' | 'friends' | 'stats' | 'profile' | 'auth' | 'avatar' | 'campaign' | 'talents' | 'cosmic_pass' | 'constellations' | null
   >(null);
-
-  // App Update System State
-  const [appUpdateInfo, setAppUpdateInfo] = useState<AppUpdateInfo | null>(null);
-  const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
-  const [hasPendingUpdate, setHasPendingUpdate] = useState<boolean>(false);
-
-  // Check for app updates
-  const runUpdateCheck = useCallback(async (isManual = false): Promise<boolean> => {
-    try {
-      const result = await updateService.checkForUpdates(isManual);
-      if (result.hasUpdate && result.updateInfo) {
-        setAppUpdateInfo(result.updateInfo);
-        setHasPendingUpdate(true);
-        // Show update modal immediately if mandatory, or if not dismissed yet, or if manual check
-        if (result.isMandatory || isManual || !updateService.isUpdateDismissed(result.updateInfo.version)) {
-          setShowUpdateModal(true);
-        }
-        return true;
-      } else {
-        setHasPendingUpdate(false);
-        setAppUpdateInfo(null);
-        return false;
-      }
-    } catch (err) {
-      console.warn('Update check failed:', err);
-      return false;
-    }
-  }, []);
-
-  // Run update check on mount after initial splash
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      runUpdateCheck(false);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [runUpdateCheck]);
-
-  // Handle claiming the APK update bonus
-  const handleClaimUpdateReward = (coins: number, stardust: number) => {
-    setPlayerState((prev) => {
-      const next = {
-        ...prev,
-        coins: prev.coins + coins,
-        stardust: (prev.stardust || 0) + stardust,
-      };
-      savePlayerState(next);
-      if (userId) savePlayerStateToCloud(userId, next).catch(console.error);
-      return next;
-    });
-    setToastQueue((prev) => [
-      ...prev,
-      {
-        id: `update-reward-${Date.now()}`,
-        title: playerState.language === 'en' ? 'Update Bounty Claimed!' : '¡Regalo por Actualizar!',
-        description: playerState.language === 'en' 
-          ? `+${coins} Coins 🪙 and +${stardust} Stardust ✨ added!`
-          : `+${coins} Monedas 🪙 y +${stardust} Polvo Estelar ✨ añadidos`,
-        icon: '🎁',
-      },
-    ]);
-  };
 
   // Friends & Social Challenges Data
   const [friends, setFriends] = useState<Friend[]>(loadFriends);
@@ -2109,8 +2045,6 @@ export default function App() {
             onOpenDailyRewards={() => setShowDailyBonusModal(true)}
             onOpenLuckySpin={() => setShowLuckySpinModal(true)}
             hasFreeLuckySpin={localStorage.getItem('star_tap_last_spin_date') !== new Date().toISOString().split('T')[0]}
-            hasPendingUpdate={hasPendingUpdate}
-            onOpenUpdateModal={() => setShowUpdateModal(true)}
           />
         )}
 
@@ -2312,7 +2246,14 @@ export default function App() {
         <ConstellationsModal
           playerState={playerState}
           onClose={() => setActiveModal(null)}
-          onUpdatePlayerState={setPlayerState}
+          onUpdatePlayerState={(updater) => {
+            setPlayerState((prev) => {
+              const nextState = typeof updater === 'function' ? updater(prev) : updater;
+              savePlayerState(nextState);
+              if (userId) savePlayerStateToCloud(userId, nextState);
+              return nextState;
+            });
+          }}
           onStartGame={() => handleStartGame()}
         />
       )}
@@ -2339,10 +2280,6 @@ export default function App() {
           onOpenFriends={() => setActiveModal('friends')}
           onOpenConstellations={() => setActiveModal('constellations')}
           onReplayTutorial={handleReplayTutorial}
-          onOpenUpdateModal={() => setShowUpdateModal(true)}
-          hasPendingUpdate={hasPendingUpdate}
-          updateVersion={appUpdateInfo?.version}
-          onCheckUpdatesTrigger={() => runUpdateCheck(true)}
         />
       )}
 
@@ -2486,17 +2423,6 @@ export default function App() {
         <SplashScreen
           onFinish={handleFinishSplash}
           language={playerState.language}
-        />
-      )}
-
-      {/* App Version & APK Update Modal */}
-      {showUpdateModal && appUpdateInfo && (
-        <AppUpdateModal
-          updateInfo={appUpdateInfo}
-          language={playerState.language}
-          onClose={() => setShowUpdateModal(false)}
-          onClaimReward={handleClaimUpdateReward}
-          onRefreshCheck={() => runUpdateCheck(true)}
         />
       )}
     </div>

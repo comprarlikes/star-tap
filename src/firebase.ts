@@ -106,11 +106,20 @@ export const resetUserPassword = async (email: string) => {
 
 // Cloud Firestore Sync: Player State
 export const savePlayerStateToCloud = async (userId: string, state: PlayerState) => {
-  if (!userId) return;
+  if (!userId || !auth.currentUser || auth.currentUser.uid !== userId) return;
   try {
     const userRef = doc(db, 'users', userId);
-    await setDoc(userRef, {
+    // Sanitize values to prevent invalid writes
+    const sanitizedState: Partial<PlayerState> = {
       ...state,
+      name: (state.name || 'Piloto').slice(0, 30),
+      level: Math.max(1, Math.min(1000, Number(state.level) || 1)),
+      coins: Math.max(0, Math.min(10000000, Number(state.coins) || 0)),
+      xp: Math.max(0, Math.min(10000000, Number(state.xp) || 0)),
+      dailyStreak: Math.max(0, Math.min(1000, Number(state.dailyStreak) || 0)),
+    };
+    await setDoc(userRef, {
+      ...sanitizedState,
       updatedAt: new Date().toISOString()
     }, { merge: true });
   } catch (err) {
@@ -137,16 +146,22 @@ export const saveScoreToCloudLeaderboard = async (
   userId: string,
   entry: LeaderboardEntry
 ) => {
-  if (!userId) return;
+  if (!userId || !auth.currentUser || auth.currentUser.uid !== userId) return;
   try {
+    const cleanScore = Math.max(0, Math.min(500000, Math.floor(Number(entry.score) || 0)));
+    const cleanName = (entry.name || 'Jugador').trim().slice(0, 30);
+    const cleanLevel = Math.max(1, Math.min(1000, Math.floor(Number(entry.level) || 1)));
+    const cleanAvatar = (entry.avatar || '⭐').slice(0, 64);
+    const cleanFlag = (entry.flag || '🌐').slice(0, 16);
+
     const entryRef = doc(db, 'leaderboard', userId);
     await setDoc(entryRef, {
       userId,
-      name: entry.name,
-      score: entry.score,
-      level: entry.level,
-      avatar: entry.avatar,
-      flag: entry.flag,
+      name: cleanName,
+      score: cleanScore,
+      level: cleanLevel,
+      avatar: cleanAvatar,
+      flag: cleanFlag,
       updatedAt: serverTimestamp()
     }, { merge: true });
   } catch (err) {

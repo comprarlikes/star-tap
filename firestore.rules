@@ -1,12 +1,93 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    // Default deny all access
+    match /{document=**} {
+      allow read, write: if false;
     }
-    match /leaderboard/{document=**} {
+
+    // Reusable validation primitives
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidLeaderboardEntry(data) {
+      return data.userId is string 
+        && data.userId == request.auth.uid 
+        && data.name is string 
+        && data.name.size() >= 1 
+        && data.name.size() <= 30
+        && data.score is number 
+        && data.score >= 0 
+        && data.score <= 500000
+        && (!('level' in data) || (data.level is number && data.level >= 1 && data.level <= 1000))
+        && (!('avatar' in data) || (data.avatar is string && data.avatar.size() <= 64))
+        && (!('flag' in data) || (data.flag is string && data.flag.size() <= 16));
+    }
+
+    function isValidUser(data, userId) {
+      return (!('id' in data) || (data.id is string && data.id == userId))
+        && (!('name' in data) || (data.name is string && data.name.size() <= 30))
+        && (!('level' in data) || (data.level is number && data.level >= 1 && data.level <= 1000))
+        && (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 500000))
+        && (!('highScore' in data) || (data.highScore is number && data.highScore >= 0 && data.highScore <= 500000))
+        && (!('coins' in data) || (data.coins is number && data.coins >= 0 && data.coins <= 10000000))
+        && (!('stardust' in data) || (data.stardust is number && data.stardust >= 0 && data.stardust <= 10000000));
+    }
+
+    // Leaderboard Collection
+    match /leaderboard/{userId} {
+      // Any client can read and list the leaderboard for the ranking table
       allow read: if true;
-      allow write: if request.auth != null;
+
+      // Only the authenticated owner can create their leaderboard entry
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidLeaderboardEntry(incoming());
+
+      // Only the authenticated owner can update their entry, and score cannot be maliciously wiped
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidLeaderboardEntry(incoming())
+        && incoming().userId == existing().userId
+        && incoming().score >= existing().score;
+
+      // Deletion from the client is prohibited
+      allow delete: if false;
+    }
+
+    // User Private Profile & Saved Progress
+    match /users/{userId} {
+      // Only the authenticated owner can get their own save data
+      allow get: if isOwner(userId) && isValidId(userId);
+
+      // Deny bulk list/scraping of user accounts
+      allow list: if false;
+
+      // Only the authenticated owner can create or update their own save file with sanity checks
+      allow create, update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUser(incoming(), userId);
+
+      // Only the authenticated owner can delete their account data
+      allow delete: if isOwner(userId) && isValidId(userId);
     }
   }
 }

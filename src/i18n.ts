@@ -214,19 +214,15 @@ export const translations = {
     tutorialStartGameBtn: '🚀 ¡EMPEZAR MI PRIMERA PARTIDA!',
     tutorialReplayBtn: 'Ver Tutorial 💡',
 
-    // App Version & Update Manager
-    appUpdatesTitle: 'ACTUALIZACIÓN & VERSIÓN DE LA APP',
-    currentVersionLabel: 'Versión Instalada',
-    checkForUpdatesBtn: 'Buscar Actualizaciones',
-    checkingUpdates: 'Comprobando servidores...',
-    upToDateMsg: '¡Tienes la versión más reciente instalada!',
-    updateAvailableBadge: '¡Nueva versión disponible!',
-    updateRequiredBadge: '⚠️ Actualización Requerida',
-    viewUpdateBtn: 'Ver Actualización',
-    simulateUpdateLabel: 'Simular Estado de Actualización (Pruebas)',
-    simulateNone: 'Normal',
-    simulateOptional: 'Opcional (v2.5.0)',
-    simulateMandatory: 'Obligatoria (v3.0.0)',
+    // App Version & Google Play Store Automatic Updates
+    appUpdatesTitle: 'VERSIÓN Y GOOGLE PLAY STORE',
+    currentVersionLabel: 'Versión Oficial',
+    playStoreAutoUpdates: 'Actualizaciones automáticas activas',
+    playStoreAutoUpdatesDesc: 'Las nuevas versiones y App Bundles de Google Play se descargan e instalan automáticamente en segundo plano.',
+    viewOnPlayStoreBtn: 'Ver en Google Play Store',
+    distributionChannelLabel: 'Canal de Distribución:',
+    distributionChannelValue: 'Google Play Store (AAB Oficial)',
+    upToDateMsg: '¡Tienes la versión oficial más reciente instalada!',
   },
   en: {
     // Header HUD & Nav
@@ -441,19 +437,15 @@ export const translations = {
     tutorialStartGameBtn: '🚀 START MY FIRST GAME!',
     tutorialReplayBtn: 'Replay Tour 💡',
 
-    // App Version & Update Manager
-    appUpdatesTitle: 'APP UPDATES & VERSION',
-    currentVersionLabel: 'Installed Version',
-    checkForUpdatesBtn: 'Check for Updates',
-    checkingUpdates: 'Checking servers...',
-    upToDateMsg: 'You already have the latest version installed!',
-    updateAvailableBadge: 'New version available!',
-    updateRequiredBadge: '⚠️ Mandatory Update Required',
-    viewUpdateBtn: 'View Update',
-    simulateUpdateLabel: 'Simulate Update State (Testing)',
-    simulateNone: 'Normal',
-    simulateOptional: 'Optional (v2.5.0)',
-    simulateMandatory: 'Mandatory (v3.0.0)',
+    // App Version & Google Play Store Automatic Updates
+    appUpdatesTitle: 'VERSION & GOOGLE PLAY STORE',
+    currentVersionLabel: 'Official Version',
+    playStoreAutoUpdates: 'Automatic updates active',
+    playStoreAutoUpdatesDesc: 'New versions and Google Play App Bundles are downloaded and installed automatically in the background.',
+    viewOnPlayStoreBtn: 'View on Google Play Store',
+    distributionChannelLabel: 'Distribution Channel:',
+    distributionChannelValue: 'Google Play Store (Official AAB)',
+    upToDateMsg: 'You have the latest official version installed!',
   },
 };
 

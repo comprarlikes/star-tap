@@ -442,9 +442,48 @@ class ConstellationService {
     return this.clans.find((c) => c.id === clanId) || null;
   }
 
+  public syncPlayerState(playerState: PlayerState, targetClan?: ConstellationClan): void {
+    if (!playerState.constellationId) return;
+    const clan = targetClan || this.getConstellationById(playerState.constellationId);
+    if (!clan) return;
+    const member = clan.members.find((m) => m.id === 'player_user');
+    if (member) {
+      let changed = false;
+      const currentAvatar = playerState.avatar || '⭐';
+      const currentName = playerState.name || 'Comandante Estelar';
+      const currentLevel = playerState.level || 1;
+      const currentTrophies = playerState.trophies || 0;
+
+      if (member.avatar !== currentAvatar) {
+        member.avatar = currentAvatar;
+        changed = true;
+      }
+      if (member.name !== currentName) {
+        member.name = currentName;
+        changed = true;
+      }
+      if (member.level !== currentLevel) {
+        member.level = currentLevel;
+        changed = true;
+      }
+      if (member.trophies !== currentTrophies) {
+        member.trophies = currentTrophies;
+        changed = true;
+      }
+
+      if (changed) {
+        this.saveClans();
+      }
+    }
+  }
+
   public getUserConstellation(playerState: PlayerState): ConstellationClan | null {
     if (!playerState.constellationId) return null;
-    return this.getConstellationById(playerState.constellationId);
+    const clan = this.getConstellationById(playerState.constellationId);
+    if (clan) {
+      this.syncPlayerState(playerState, clan);
+    }
+    return clan;
   }
 
   public createConstellation(
@@ -1078,6 +1117,11 @@ class ConstellationService {
     const coins = baseReward;
     const stardust = clan.chestLevel * 120;
     const xp = clan.chestLevel * 300;
+
+    // Reset chest level and progress
+    clan.chestLevel = 0;
+    clan.chestProgress = 0;
+    this.saveClans();
 
     return { coins, stardust, xp };
   }

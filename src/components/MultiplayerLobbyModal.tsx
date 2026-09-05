@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Swords, 
@@ -42,6 +42,21 @@ export const MultiplayerLobbyModal: React.FC<MultiplayerLobbyModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [pinCopied, setPinCopied] = useState<boolean>(false);
 
+  // Timeouts ref for cancellation and leak-prevention
+  const timeoutsRef = useRef<NodeJS.Timeout[]>([]);
+
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current = [];
+    };
+  }, []);
+
+  const clearSearchTimeouts = () => {
+    timeoutsRef.current.forEach(clearTimeout);
+    timeoutsRef.current = [];
+  };
+
   // Custom Room State
   const [roomPin, setRoomPin] = useState<string>('');
   const [createdPin, setCreatedPin] = useState<string | null>(null);
@@ -65,41 +80,49 @@ export const MultiplayerLobbyModal: React.FC<MultiplayerLobbyModalProps> = ({
       return;
     }
 
+    clearSearchTimeouts();
     soundManager.playButtonClick();
     hapticManager.mediumTap();
     setIsSearching(true);
     setSearchStep(1);
     setFoundOpponent(null);
 
-    // Simulated high-fidelity global matchmaking sequence
+    // Step 1: Scan Cosmic Network
     const t1 = setTimeout(() => {
       setSearchStep(2);
       soundManager.playWheelSpin();
-    }, 1200);
+    }, 1100);
 
+    // Step 2: Match Found
+    let matched: MultiplayerOpponent;
     const t2 = setTimeout(() => {
       setSearchStep(3);
-      const matched = findMatchingOpponent(selectedArena, playerTrophies, playerState.name);
+      matched = findMatchingOpponent(selectedArena, playerTrophies, playerState.name);
       setFoundOpponent(matched);
       soundManager.playMatchFound();
       hapticManager.success();
-    }, 2500);
+    }, 2200);
 
+    // Step 3: Automatically launch match showdown
     const t3 = setTimeout(() => {
-      if (foundOpponent || searchStep >= 2) {
-        const opponent = foundOpponent || findMatchingOpponent(selectedArena, playerTrophies, playerState.name);
-        onMatchFound(selectedArena, opponent);
-      }
-    }, 4200);
+      const finalOpponent = matched || findMatchingOpponent(selectedArena, playerTrophies, playerState.name);
+      setIsSearching(false);
+      onMatchFound(selectedArena, finalOpponent);
+    }, 3800);
 
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
+    timeoutsRef.current = [t1, t2, t3];
+  };
+
+  const handleInstantStart = () => {
+    if (foundOpponent) {
+      clearSearchTimeouts();
+      setIsSearching(false);
+      onMatchFound(selectedArena, foundOpponent);
+    }
   };
 
   const handleCancelSearch = () => {
+    clearSearchTimeouts();
     soundManager.playButtonClick();
     setIsSearching(false);
     setSearchStep(0);
@@ -452,18 +475,37 @@ export const MultiplayerLobbyModal: React.FC<MultiplayerLobbyModalProps> = ({
             </p>
 
             {foundOpponent ? (
-              /* Opponent Preview Card */
-              <div className="w-full p-3.5 bg-slate-950/90 rounded-2xl border border-pink-500/40 flex items-center justify-between mb-4 shadow-inner animate-scale-up">
-                <div className="flex items-center gap-2.5 text-left">
-                  <div className="text-2xl">{foundOpponent.flag}</div>
-                  <div>
-                    <span className="font-black text-white text-xs block">{foundOpponent.name}</span>
-                    <span className="text-[10px] text-slate-400">Nivel {foundOpponent.level} • {foundOpponent.trophies} 🏆</span>
+              <div className="w-full space-y-3 animate-scale-up">
+                {/* Opponent Preview Card */}
+                <div className="w-full p-3.5 bg-slate-950/90 rounded-2xl border border-pink-500/40 flex items-center justify-between shadow-inner">
+                  <div className="flex items-center gap-2.5 text-left">
+                    <div className="text-2xl">{foundOpponent.flag}</div>
+                    <div>
+                      <span className="font-black text-white text-xs block">{foundOpponent.name}</span>
+                      <span className="text-[10px] text-slate-400">Nivel {foundOpponent.level} • {foundOpponent.trophies} 🏆</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-black text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-xl border border-emerald-500/40 animate-pulse">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{language === 'en' ? 'Ready' : 'Listo'}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-[11px] font-black text-emerald-400 bg-emerald-950/80 px-2 py-1 rounded-xl border border-emerald-500/40">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Listo</span>
+
+                <div className="flex flex-col gap-2 w-full pt-1">
+                  <button
+                    onClick={handleInstantStart}
+                    className="w-full py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-slate-950 font-black text-xs rounded-2xl border border-yellow-300 shadow-xl active:scale-95 transition-all hover:brightness-110 cursor-pointer flex items-center justify-center gap-2 animate-pulse"
+                  >
+                    <Swords className="w-4 h-4 fill-slate-950" />
+                    <span>{language === 'en' ? 'ENTER ARENA NOW!' : '¡ENTRAR A LA ARENA YA!'}</span>
+                  </button>
+
+                  <button
+                    onClick={handleCancelSearch}
+                    className="text-slate-400 hover:text-slate-200 text-xs py-1 transition-colors"
+                  >
+                    {language === 'en' ? 'Cancel' : 'Cancelar'}
+                  </button>
                 </div>
               </div>
             ) : (
@@ -471,7 +513,7 @@ export const MultiplayerLobbyModal: React.FC<MultiplayerLobbyModalProps> = ({
                 onClick={handleCancelSearch}
                 className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs rounded-2xl border border-slate-700 transition-all active:scale-95"
               >
-                Cancelar Búsqueda
+                {language === 'en' ? 'Cancel Search' : 'Cancelar Búsqueda'}
               </button>
             )}
           </div>
