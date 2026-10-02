@@ -1,0 +1,9 @@
+{
+  "version": "2.5.0",
+  "buildNumber": 250,
+  "distribution": "Google Play Store",
+  "bundleFormat": "AAB",
+  "autoUpdateEnabled": true,
+  "releaseDate": "2026-09-05",
+  "playStoreUrl": "https://play.google.com/store/apps/details?id=com.startap.arcade"
+}
