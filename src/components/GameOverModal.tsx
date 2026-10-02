@@ -155,7 +155,15 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-2xl animate-fade-in select-none overflow-y-auto overscroll-contain safe-pb safe-pt">
-      <div className="w-full max-w-sm max-h-[92dvh] overflow-y-auto no-scrollbar bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950/95 border border-amber-500/30 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-6 text-white shadow-[0_0_60px_rgba(245,158,11,0.15)] relative flex flex-col items-center text-center my-auto">
+      <div className="w-full max-w-sm max-h-[92dvh] overflow-y-auto no-scrollbar bg-gradient-to-b from-slate-900/98 via-slate-900/95 to-slate-950/98 border border-amber-500/40 ring-1 ring-amber-400/20 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-6 text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] relative flex flex-col items-center text-center my-auto">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
         
         {/* Ambient Top & Bottom Radial Glows */}
         <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-64 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
@@ -350,7 +358,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           <button
             type="button"
             onClick={onPlayAgain}
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 text-slate-950 font-black text-sm rounded-2xl shadow-[0_0_25px_rgba(245,158,11,0.35)] hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2 border border-yellow-200/60 uppercase tracking-wider whitespace-nowrap cursor-pointer"
+            className="w-full py-3.5 px-4 bg-gradient-to-b from-yellow-300 via-amber-400 to-amber-500 hover:brightness-105 text-slate-950 font-black text-sm rounded-2xl shadow-[0_5px_0_#b45309] active:translate-y-[3px] active:shadow-[0_2px_0_#b45309] transition-all flex items-center justify-center gap-2 border border-yellow-200/80 uppercase tracking-wider whitespace-nowrap cursor-pointer select-none"
           >
             <Repeat className="w-4 h-4 stroke-[2.5]" />
             <span>{t('playAgainBtn', lang)}</span>

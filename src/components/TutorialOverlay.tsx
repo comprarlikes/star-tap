@@ -149,9 +149,18 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
       )}
 
       {/* Interactive Guidance Modal Card */}
-      <div className="relative z-20 w-full max-w-md mx-4 bg-slate-900/95 border-2 border-amber-500/50 rounded-[2rem] text-white shadow-2xl p-5 flex flex-col gap-4 backdrop-blur-xl animate-scale-up text-left">
+      <div className="relative z-20 w-full max-w-md mx-4 bg-slate-900/98 border border-amber-500/40 ring-1 ring-amber-400/20 rounded-[2rem] sm:rounded-[2.5rem] text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] p-5 sm:p-6 flex flex-col gap-4 backdrop-blur-xl animate-scale-up text-left overflow-hidden">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
+
         {/* Top Card Header Bar */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 relative z-10">
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-[11px] rounded-full uppercase tracking-wider shadow">
               {t('tutorialWelcomeSub', lang)}

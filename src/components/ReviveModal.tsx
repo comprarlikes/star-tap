@@ -45,14 +45,23 @@ export const ReviveModal: React.FC<ReviveModalProps> = ({
     return () => clearInterval(interval);
   }, [onSkip]);
 
-  const reviveBenefit = gameMode === 'endless' ? '+2 Vidas ❤️' : '+15 Segundos ⏱️';
-  const reviveBenefitEn = gameMode === 'endless' ? '+2 Lives ❤️' : '+15 Seconds ⏱️';
+  const reviveBenefit = gameMode === 'endless' ? '+2 Corazones ❤️' : '+15s y +2 Corazones ❤️';
+  const reviveBenefitEn = gameMode === 'endless' ? '+2 Hearts ❤️' : '+15s & +2 Hearts ❤️';
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-fade-in select-none">
-      <div className="w-full max-w-sm bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950/95 border-2 border-red-500/50 rounded-[2.5rem] p-5 sm:p-6 text-white shadow-[0_0_60px_rgba(239,68,68,0.25)] relative overflow-hidden flex flex-col items-center text-center animate-scale-up">
+    <div className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xl animate-fade-in select-none">
+      <div className="w-full max-w-sm bg-slate-900/98 border border-rose-500/50 ring-1 ring-rose-400/30 rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-6 text-white shadow-[0_25px_60px_-15px_rgba(225,29,72,0.4)] relative overflow-hidden flex flex-col items-center text-center animate-scale-up">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-rose-500 via-amber-400 to-rose-500 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-rose-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-rose-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-rose-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-rose-400/80 pointer-events-none" />
+
         {/* Pulsing Alert Top Aura */}
-        <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-red-500/20 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-rose-500/20 rounded-full blur-2xl pointer-events-none" />
 
         {/* Circular Animated Countdown Badge */}
         <div className="relative mb-3 flex items-center justify-center">

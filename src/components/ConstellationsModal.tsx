@@ -440,7 +440,16 @@ export const ConstellationsModal: React.FC<ConstellationsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-2xl animate-fade-in select-none">
-      <div className="w-full max-w-xl bg-slate-900/95 border border-slate-700/80 rounded-[2.5rem] text-white shadow-2xl flex flex-col overflow-hidden relative max-h-[92vh]">
+      <div className="w-full max-w-xl bg-slate-900/98 border border-purple-500/40 ring-1 ring-purple-400/20 rounded-[2rem] sm:rounded-[2.5rem] text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden relative max-h-[92vh]">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-purple-400 via-pink-500 to-amber-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-purple-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-purple-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
+
         {/* Toast Notification */}
         {toastMessage && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-950/95 border border-amber-400/80 text-amber-300 px-4 py-2.5 rounded-2xl text-xs font-black shadow-2xl flex items-center gap-2 animate-bounce">
@@ -450,7 +459,7 @@ export const ConstellationsModal: React.FC<ConstellationsModalProps> = ({
         )}
 
         {/* Modal Header HUD */}
-        <div className="px-5 py-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between z-10">
+        <div className="px-5 py-4 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between z-10 relative">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-2xl border border-purple-400/40 text-white shadow-lg flex items-center justify-center">
               <Shield className="w-5 h-5 text-amber-300" />

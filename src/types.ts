@@ -74,6 +74,12 @@ export interface CosmicPassState {
   isVipUnlocked: boolean;
   claimedFreeTiers: number[];
   claimedVipTiers: number[];
+  seasonId?: string;
+  currentTier?: number;
+  xpPerTier?: number;
+  maxTier?: number;
+  hasVipPass?: boolean;
+  seasonEndTimestamp?: number;
 }
 
 export interface GhostRival {
@@ -88,6 +94,7 @@ export interface GhostRival {
 export type StarType = 
   | 'normal'     // ⭐ +1 pt
   | 'golden'     // 🌟 +5 pts
+  | 'gold'       // 🌟 alias for golden
   | 'diamond'    // 💎 +20 pts
   | 'bomb'       // ❌ -10 pts, breaks combo
   | 'multiplier2'// ✨ x2 multiplier for 10s
@@ -119,6 +126,7 @@ export interface BladePoint {
 }
 
 export interface SliceArc {
+  id?: string;
   x1: number;
   y1: number;
   x2: number;
@@ -142,8 +150,10 @@ export type ParticleShape = 'circle' | 'star' | 'spark' | 'ring' | 'smoke';
 export interface Particle {
   x: number;
   y: number;
+  z?: number; // 3D depth layer
   vx: number;
   vy: number;
+  vz?: number; // 3D depth velocity
   color: string;
   size: number;
   alpha: number;
@@ -248,7 +258,9 @@ export interface PlayerStats {
   bombsAvoided: number;
   bombsHit: number;
   highestScore: number;
+  highScore?: number;
   highestCombo: number;
+  maxCombo?: number;
   totalCoinsEarned: number;
   totalXpEarned: number;
   scoreHistory?: number[];
@@ -269,6 +281,7 @@ export interface MultiplayerArena {
   description: string;
   descriptionEn: string;
   entryFee: number;
+  entryFeeCoins?: number;
   prizeCoins: number;
   trophiesReward: number;
   trophiesLoss: number;
@@ -284,14 +297,17 @@ export interface MultiplayerOpponent {
   name: string;
   avatar: string;
   flag: string;
-  level: number;
+  level?: number;
   trophies: number;
-  winStreak: number;
-  country: string;
-  pingMs: number;
+  winStreak?: number;
+  winRate?: number;
+  ping?: number;
+  country?: string;
+  pingMs?: number;
   targetScore: number;
-  personality: 'aggressive' | 'steady' | 'clutch' | 'speedy';
+  personality?: 'aggressive' | 'steady' | 'clutch' | 'speedy';
   skillMultiplier: number;
+  league?: string;
 }
 
 export interface LiveEmote {
@@ -343,10 +359,14 @@ export interface PlayerState {
   xp: number;
   level: number;
   talentPoints?: number;
+  totalTalentPointsEarned?: number;
   talents?: Record<string, number>;
   campaignProgress?: CampaignProgress;
   cosmicPass?: CosmicPassState;
   trophies?: number;
+  stardust?: number;
+  energy?: number;
+  maxEnergy?: number;
   constellationId?: string | null;
   constellationRole?: ConstellationRole;
   constellationStardustDonated?: number;

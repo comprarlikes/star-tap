@@ -48,11 +48,19 @@ export const EuConsentModal: React.FC<EuConsentModalProps> = ({
   const isEs = lang === 'es';
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5 bg-slate-950/90 backdrop-blur-2xl animate-fade-in select-none">
-      <div className="w-full max-w-md bg-slate-900 border border-blue-500/40 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col relative text-white">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-2xl animate-fade-in select-none">
+      <div className="w-full max-w-md bg-slate-900/98 border border-blue-500/40 ring-1 ring-blue-400/20 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] flex flex-col relative text-white">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-blue-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-blue-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
         
         {/* Top EU Regulations Header */}
-        <div className="w-full px-5 py-3.5 bg-gradient-to-r from-blue-950 via-slate-950 to-indigo-950 border-b border-blue-500/30 flex items-center justify-between">
+        <div className="w-full px-5 py-3.5 bg-gradient-to-r from-blue-950 via-slate-950 to-indigo-950 border-b border-blue-500/30 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-blue-500/20 text-blue-300 rounded-xl border border-blue-400/40 flex items-center justify-center">
               <Globe className="w-5 h-5 text-blue-400" />

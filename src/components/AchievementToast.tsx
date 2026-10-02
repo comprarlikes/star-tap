@@ -10,8 +10,8 @@ export interface ToastItem {
   title: string;
   description?: string;
   icon?: string;
-  rewardCoins: number;
-  rewardXp: number;
+  rewardCoins?: number;
+  rewardXp?: number;
 }
 
 interface AchievementToastProps {

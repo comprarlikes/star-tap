@@ -47,15 +47,30 @@ export const QuestsModal: React.FC<QuestsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl animate-fade-in">
-      <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-[2rem] text-white shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-xl animate-fade-in select-none">
+      <div className="w-full max-w-md bg-slate-900/95 border border-amber-500/40 ring-1 ring-amber-400/20 rounded-[2rem] sm:rounded-[2.5rem] text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden relative">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
+
         {/* Header Bento Tile */}
-        <div className="px-5 py-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-5 py-4 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-2xl border border-amber-500/20">
+            <div className="p-2.5 bg-gradient-to-tr from-amber-500/20 to-yellow-400/20 text-amber-400 rounded-2xl border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
               <Target className="w-5 h-5" />
             </div>
-            <h3 className="text-xl font-black text-white tracking-tight">MISIONES Y RACHAS</h3>
+            <div className="flex flex-col text-left">
+              <h3 className="text-xl font-black text-white tracking-tight flex items-center gap-1.5">
+                MISIONES Y RACHAS
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 font-mono uppercase">DIARIO</span>
+              </h3>
+              <span className="text-[10px] text-amber-300/90 font-bold">Objetivos y Recompensas Diarias</span>
+            </div>
           </div>
 
           <button
@@ -63,7 +78,7 @@ export const QuestsModal: React.FC<QuestsModalProps> = ({
               soundManager.playButtonClick();
               onClose();
             }}
-            className="p-2 bg-slate-800/80 hover:bg-slate-700/80 rounded-2xl text-slate-400 hover:text-white border border-slate-700/60 transition-all active:scale-95"
+            className="p-2 bg-slate-800/90 hover:bg-slate-700/90 rounded-2xl text-slate-400 hover:text-white border border-slate-700/80 transition-all active:scale-95 cursor-pointer shadow"
           >
             <X className="w-4 h-4" />
           </button>
@@ -239,10 +254,10 @@ export const QuestsModal: React.FC<QuestsModalProps> = ({
                             soundManager.playCoin();
                             onClaimQuest(quest.id);
                           }}
-                          className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition-all ${
+                          className={`px-3 py-1.5 rounded-xl font-black text-xs transition-all ${
                             isReady
-                              ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 hover:scale-105 active:scale-95 shadow-md animate-pulse'
-                              : 'bg-slate-800/80 text-slate-500 border border-slate-700/60'
+                              ? 'bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-[0_3px_0_#065f46] hover:shadow-[0_4px_0_#065f46] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_#065f46] cursor-pointer animate-pulse'
+                              : 'bg-slate-800/80 text-slate-500 border border-slate-700/60 cursor-not-allowed'
                           }`}
                         >
                           {isReady ? 'RECLAMAR' : `${quest.progress}/${quest.target}`}

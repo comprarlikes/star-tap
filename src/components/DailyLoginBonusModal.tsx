@@ -70,23 +70,32 @@ export const DailyLoginBonusModal: React.FC<DailyLoginBonusModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-5 bg-slate-950/90 backdrop-blur-xl animate-fade-in select-none font-sans">
-      <div className="w-full max-w-lg bg-slate-900 border border-amber-500/40 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col relative text-white">
+    <div className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-xl animate-fade-in select-none font-sans">
+      <div className="w-full max-w-lg bg-slate-900/98 border border-amber-500/40 ring-1 ring-amber-400/20 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] flex flex-col relative text-white">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
         
         {/* Ambient Top Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Modal Header */}
-        <div className="px-6 pt-5 pb-3 flex items-center justify-between z-10 border-b border-slate-800/80">
+        {/* Modal Header Bento Tile */}
+        <div className="px-5 sm:px-6 py-4 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-300 p-0.5 shadow-lg shadow-amber-500/30">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-xl">
-                🎁
-              </div>
+            <div className="p-2.5 bg-gradient-to-tr from-amber-500/20 to-yellow-400/20 text-amber-400 rounded-2xl border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
+              <span className="text-xl">🎁</span>
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-black text-white tracking-tight uppercase">
+              <h3 className="text-lg sm:text-xl font-black text-white tracking-tight uppercase flex items-center gap-2">
                 {language === 'en' ? 'DAILY LOGIN REWARD' : 'RECOMPENSA DIARIA DE ACCESO'}
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 font-mono uppercase">
+                  7 DÍAS
+                </span>
               </h3>
               <p className="text-xs text-amber-300 font-bold flex items-center gap-1.5 mt-0.5">
                 <Flame className="w-3.5 h-3.5 text-orange-400 fill-orange-400" />
@@ -104,7 +113,7 @@ export const DailyLoginBonusModal: React.FC<DailyLoginBonusModalProps> = ({
               soundManager.playButtonClick();
               onClose();
             }}
-            className="p-2 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-all active:scale-95 border border-slate-700"
+            className="p-2 rounded-2xl bg-slate-800/90 hover:bg-slate-700/90 text-slate-400 hover:text-white transition-all active:scale-95 border border-slate-700/80 shadow cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

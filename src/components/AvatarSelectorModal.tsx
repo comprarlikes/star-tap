@@ -58,12 +58,21 @@ export const AvatarSelectorModal: React.FC<AvatarSelectorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-xl animate-fade-in">
-      <div className="w-full max-w-lg bg-slate-900/95 border border-amber-500/30 rounded-[2rem] text-white shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative">
-        {/* Modal Header */}
-        <div className="px-5 py-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-xl animate-fade-in select-none">
+      <div className="w-full max-w-lg bg-slate-900/98 border border-amber-500/40 ring-1 ring-amber-400/20 rounded-[2rem] sm:rounded-[2.5rem] text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] flex flex-col max-h-[90vh] overflow-hidden relative">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
+
+        {/* Modal Header Bento Tile */}
+        <div className="px-5 py-4 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-tr from-amber-500 via-yellow-400 to-orange-500 text-slate-950 rounded-2xl shadow-md border border-yellow-200/50">
+            <div className="p-2.5 bg-gradient-to-tr from-amber-500/20 to-yellow-400/20 text-amber-400 rounded-2xl border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
               <UserCheck className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div className="flex flex-col text-left">
@@ -77,7 +86,7 @@ export const AvatarSelectorModal: React.FC<AvatarSelectorModalProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-2xl border border-amber-500/30 text-amber-400 font-extrabold text-xs shadow-inner">
+            <div className="flex items-center gap-1.5 bg-slate-950/90 px-3 py-1.5 rounded-2xl border border-amber-500/40 text-amber-400 font-extrabold text-xs shadow-inner">
               <span className="text-sm">🪙</span>
               <span>{playerState.coins.toLocaleString()}</span>
             </div>
@@ -88,7 +97,7 @@ export const AvatarSelectorModal: React.FC<AvatarSelectorModalProps> = ({
                 soundManager.playButtonClick();
                 onClose();
               }}
-              className="p-2 bg-slate-800/80 hover:bg-slate-700/80 rounded-2xl text-slate-400 hover:text-white border border-slate-700/60 transition-all active:scale-95 cursor-pointer"
+              className="p-2 bg-slate-800/90 hover:bg-slate-700/90 rounded-2xl text-slate-400 hover:text-white border border-slate-700/80 transition-all active:scale-95 cursor-pointer shadow"
             >
               <X className="w-4 h-4" />
             </button>

@@ -31,10 +31,15 @@ import {
   Copy, 
   Users,
   ExternalLink,
-  CheckCircle2
+  CheckCircle2,
+  Download,
+  Image as ImageIcon,
+  Maximize2
 } from 'lucide-react';
 import { getMyPlayerCode } from '../services/friends';
 import { t, Language } from '../i18n';
+import googlePlayFeatureImg from '../assets/images/google_play_feature_1789761929266.jpg';
+import googlePlayHomeImg from '../assets/images/google_play_home_1789761943195.jpg';
 
 interface ProfileModalProps {
   playerState: PlayerState;
@@ -70,6 +75,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [nameInput, setNameInput] = useState(playerState.name);
   const [isSaved, setIsSaved] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+  const [previewImage, setPreviewImage] = useState<{ src: string; title: string; desc: string; filename: string } | null>(null);
   const lang = playerState.language || 'es';
   const hapticsEnabled = playerState.hapticsEnabled ?? true;
   const questRemindersEnabled = playerState.questRemindersEnabled ?? true;
@@ -97,12 +103,21 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl animate-fade-in">
-      <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-[2rem] text-white shadow-2xl flex flex-col overflow-hidden relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-xl animate-fade-in select-none">
+      <div className="w-full max-w-md bg-slate-900/95 border border-amber-500/40 ring-1 ring-amber-400/20 rounded-[2rem] sm:rounded-[2.5rem] text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden relative">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
+
         {/* Header Bento Tile */}
-        <div className="px-5 py-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-5 py-4 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-2xl border border-amber-500/20">
+            <div className="p-2.5 bg-gradient-to-tr from-amber-500/20 to-yellow-400/20 text-amber-400 rounded-2xl border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
               <User className="w-5 h-5" />
             </div>
             <div className="flex flex-col text-left">
@@ -118,7 +133,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               soundManager.playButtonClick();
               onClose();
             }}
-            className="p-2 bg-slate-800/80 hover:bg-slate-700/80 rounded-2xl text-slate-400 hover:text-white border border-slate-700/60 transition-all active:scale-95"
+            className="p-2 bg-slate-800/90 hover:bg-slate-700/90 rounded-2xl text-slate-400 hover:text-white border border-slate-700/80 transition-all active:scale-95 cursor-pointer shadow"
           >
             <X className="w-4 h-4" />
           </button>
@@ -583,6 +598,155 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
           </div>
 
+          {/* Official Google Play Store Graphic Assets */}
+          <div className="bg-slate-950/80 p-4 rounded-2xl border-2 border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.15)] space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-sm shadow">
+                  🖼️
+                </div>
+                <div className="text-left">
+                  <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <span>{lang === 'en' ? 'Google Play Store Assets' : 'Recursos para Google Play'}</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                      PRO 4K
+                    </span>
+                  </h3>
+                  <p className="text-[10.5px] text-slate-400 font-medium">
+                    {lang === 'en' 
+                      ? 'HD graphics ready to upload to Google Play Console'
+                      : 'Imágenes profesionales listas para subir a Google Play Console'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-1">
+              {/* Asset 1: Gráfico de Funciones (Feature Graphic) 16:9 */}
+              <div className="bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                    <span>⭐</span>
+                    <span>{lang === 'en' ? 'Feature Graphic (Header Banner)' : 'Gráfico de Funciones (Portada)'}</span>
+                  </span>
+                  <span className="text-[10px] font-mono font-bold bg-amber-950/70 border border-amber-500/40 text-amber-300 px-2 py-0.5 rounded-full">
+                    1024 × 500 px • 16:9
+                  </span>
+                </div>
+
+                {/* Banner Thumbnail with specular glow */}
+                <div 
+                  onClick={() => setPreviewImage({
+                    src: googlePlayFeatureImg,
+                    title: lang === 'en' ? 'Google Play Feature Graphic (1024x500)' : 'Gráfico de Funciones Google Play (1024x500)',
+                    desc: lang === 'en' ? 'Official 16:9 header banner for Google Play Store listing with 3D logo & cosmic stars.' : 'Portada destacada obligatoria de Google Play Store con logo 3D y estrellas cósmicas.',
+                    filename: 'star_tap_arcade_google_play_feature_graphic.jpg'
+                  })}
+                  className="group relative w-full aspect-[16/9] rounded-xl overflow-hidden border border-slate-700 cursor-pointer shadow-md hover:border-amber-400/80 transition-all"
+                >
+                  <img 
+                    src={googlePlayFeatureImg} 
+                    alt="Star Tap Arcade Google Play Feature Graphic" 
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-slate-950/20 group-hover:bg-slate-950/40 flex items-center justify-center transition-colors">
+                    <span className="opacity-0 group-hover:opacity-100 bg-slate-950/90 border border-white/30 text-white text-[11px] font-black px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 transition-opacity">
+                      <Maximize2 className="w-3.5 h-3.5 text-amber-300" />
+                      <span>{lang === 'en' ? 'Expand View' : 'Ver en Grande'}</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewImage({
+                      src: googlePlayFeatureImg,
+                      title: lang === 'en' ? 'Google Play Feature Graphic (1024x500)' : 'Gráfico de Funciones Google Play (1024x500)',
+                      desc: lang === 'en' ? 'Official 16:9 header banner for Google Play Store listing with 3D logo & cosmic stars.' : 'Portada destacada obligatoria de Google Play Store con logo 3D y estrellas cósmicas.',
+                      filename: 'star_tap_arcade_google_play_feature_graphic.jpg'
+                    })}
+                    className="flex-1 py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-[11px] font-black text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 text-amber-300" />
+                    <span>{lang === 'en' ? 'View Fullscreen' : 'Ver Pantalla Completa'}</span>
+                  </button>
+
+                  <a
+                    href={googlePlayFeatureImg}
+                    download="star_tap_arcade_google_play_feature_graphic.jpg"
+                    className="flex-1 py-2 px-3 bg-gradient-to-r from-amber-500 to-yellow-400 hover:brightness-110 text-slate-950 font-black text-[11px] rounded-xl flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95 text-center"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{lang === 'en' ? 'Download (16:9)' : 'Descargar (16:9)'}</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Asset 2: Captura Vertical de la Home (9:16) */}
+              <div className="bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-cyan-300 flex items-center gap-1.5">
+                    <span>📱</span>
+                    <span>{lang === 'en' ? 'Home Interface Screenshot' : 'Captura Vertical de la Home'}</span>
+                  </span>
+                  <span className="text-[10px] font-mono font-bold bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 px-2 py-0.5 rounded-full">
+                    1080 × 1920 px • 9:16
+                  </span>
+                </div>
+
+                <div 
+                  onClick={() => setPreviewImage({
+                    src: googlePlayHomeImg,
+                    title: lang === 'en' ? 'Google Play Home Screenshot (9:16)' : 'Captura de Home para Google Play (9:16)',
+                    desc: lang === 'en' ? 'Vertical mobile gameplay & menu showcase for Google Play phone screenshots.' : 'Captura vertical de alta fidelidad para el carrusel de capturas de móvil en Google Play.',
+                    filename: 'star_tap_arcade_home_screenshot_9x16.jpg'
+                  })}
+                  className="group relative w-full h-48 rounded-xl overflow-hidden border border-slate-700 cursor-pointer shadow-md hover:border-cyan-400/80 transition-all flex items-center justify-center bg-slate-950"
+                >
+                  <img 
+                    src={googlePlayHomeImg} 
+                    alt="Star Tap Arcade Google Play Home Screenshot" 
+                    referrerPolicy="no-referrer"
+                    className="h-full w-auto object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-slate-950/20 group-hover:bg-slate-950/40 flex items-center justify-center transition-colors">
+                    <span className="opacity-0 group-hover:opacity-100 bg-slate-950/90 border border-white/30 text-white text-[11px] font-black px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 transition-opacity">
+                      <Maximize2 className="w-3.5 h-3.5 text-cyan-300" />
+                      <span>{lang === 'en' ? 'Expand View' : 'Ver en Grande'}</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewImage({
+                      src: googlePlayHomeImg,
+                      title: lang === 'en' ? 'Google Play Home Screenshot (9:16)' : 'Captura de Home para Google Play (9:16)',
+                      desc: lang === 'en' ? 'Vertical mobile gameplay & menu showcase for Google Play phone screenshots.' : 'Captura vertical de alta fidelidad para el carrusel de capturas de móvil en Google Play.',
+                      filename: 'star_tap_arcade_home_screenshot_9x16.jpg'
+                    })}
+                    className="flex-1 py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-[11px] font-black text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 text-cyan-300" />
+                    <span>{lang === 'en' ? 'View Fullscreen' : 'Ver Pantalla Completa'}</span>
+                  </button>
+
+                  <a
+                    href={googlePlayHomeImg}
+                    download="star_tap_arcade_home_screenshot_9x16.jpg"
+                    className="flex-1 py-2 px-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 text-slate-950 font-black text-[11px] rounded-xl flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95 text-center"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{lang === 'en' ? 'Download (9:16)' : 'Descargar (9:16)'}</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Firebase Cloud Sync Status */}
           <div className="flex items-center justify-between bg-sky-950/40 border border-sky-500/30 px-3.5 py-2 rounded-xl text-xs text-sky-300 font-semibold">
             <div className="flex items-center gap-2">
@@ -667,6 +831,68 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Full-Screen Image Preview Modal for Google Play Assets */}
+      {previewImage && (
+        <div 
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-slate-950/95 backdrop-blur-2xl animate-fade-in select-none"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-4xl w-full max-h-[92vh] flex flex-col items-center bg-slate-900 border-2 border-slate-700 rounded-3xl p-4 sm:p-6 shadow-2xl overflow-hidden"
+          >
+            {/* Header */}
+            <div className="w-full flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+              <div className="text-left">
+                <h4 className="text-sm sm:text-base font-black text-white">{previewImage.title}</h4>
+                <p className="text-xs text-slate-400 font-medium">{previewImage.desc}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* High-Res Image Display */}
+            <div className="relative flex-1 w-full flex items-center justify-center overflow-hidden rounded-2xl bg-slate-950 border border-slate-800 p-2">
+              <img 
+                src={previewImage.src} 
+                alt={previewImage.title} 
+                referrerPolicy="no-referrer"
+                className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-2xl"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="w-full flex items-center justify-between gap-3 pt-4 mt-2">
+              <span className="text-xs text-slate-400 font-mono hidden sm:inline-block">
+                {previewImage.filename}
+              </span>
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setPreviewImage(null)}
+                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  {lang === 'en' ? 'Close' : 'Cerrar'}
+                </button>
+                <a
+                  href={previewImage.src}
+                  download={previewImage.filename}
+                  className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg hover:brightness-110 active:scale-95 transition-all text-center"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>{lang === 'en' ? 'Download Image' : 'Descargar Imagen'}</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

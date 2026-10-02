@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { StarItem, StarType, Particle, ParticleShape, FloatingText, PlayerState, GameMode, GhostRival, MultiplayerOpponent, MultiplayerArena, LiveEmote, BladePoint, SliceArc, CampaignLevel } from '../types';
 import { soundManager } from '../services/sound';
 import { hapticManager } from '../services/haptics';
@@ -10,8 +10,12 @@ import { MultiplayerBattleHUD } from './MultiplayerBattleHUD';
 import { getRandomOpponentEmote } from '../services/multiplayerBotPool';
 import { getTalentValue } from '../data/talents';
 import { MainMenuTopShortcuts, MainMenuBottomShortcuts } from './MainMenuShortcuts';
-import { Heart, Shield, Zap, Sparkles, AlertTriangle, Swords, Ghost, Users, Trophy, Gamepad2, X, Check, Clock, Flame, Smile, LogOut, Pause } from 'lucide-react';
+import { Heart, Shield, Zap, Sparkles, AlertTriangle, Swords, Ghost, Users, Trophy, Gamepad2, X, Check, Clock, Flame, Smile, LogOut, Pause, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
 import { t } from '../i18n';
+import { CelestialStarGraphic } from './CelestialStarGraphic';
+import { GlossyRedHeart } from './GlossyRedHeart';
+import { GoldenCapsuleStar } from './GoldenCapsuleStar';
+import { ThreeHeroStarCanvas } from './ThreeHeroStarCanvas';
 
 interface GameBoardProps {
   isPlaying: boolean;
@@ -70,6 +74,79 @@ interface GameBoardProps {
   onSendEmote?: (emoji: string) => void;
 }
 
+interface StarItemRendererProps {
+  star: StarItem;
+  isTapped: boolean;
+  onTap: (star: StarItem, e: React.PointerEvent) => void;
+}
+
+const StarItemRenderer = React.memo<StarItemRendererProps>(({ star, isTapped, onTap }) => {
+  // Calculate subtle 3D rotational tilt based on playfield coordinates
+  const tiltX = Math.max(-16, Math.min(16, ((star.y - 50) / 50) * 14));
+  const tiltY = Math.max(-18, Math.min(18, ((50 - star.x) / 50) * 16));
+  const rotZ = star.rotation || 0;
+  const currentScale = star.scale || 1;
+
+  return (
+    <div
+      className="absolute flex items-center justify-center pointer-events-auto will-change-transform select-none"
+      style={{
+        left: `${star.x}%`,
+        top: `${star.y}%`,
+        width: `${star.size}px`,
+        height: `${star.size}px`,
+        perspective: '700px',
+        transform: 'translate3d(-50%, -50%, 0)',
+      }}
+    >
+      {/* 3D Cosmic Playfield Floor Shadow */}
+      <div 
+        className="absolute rounded-full pointer-events-none transition-all duration-150 ease-out"
+        style={{
+          width: `${star.size * 0.72}px`,
+          height: `${star.size * 0.26}px`,
+          bottom: `-${star.size * 0.22}px`,
+          background: star.type === 'bomb' 
+            ? 'radial-gradient(ellipse, rgba(239, 68, 68, 0.45) 0%, transparent 72%)' 
+            : star.type === 'diamond'
+            ? 'radial-gradient(ellipse, rgba(56, 189, 248, 0.5) 0%, transparent 72%)'
+            : star.type === 'supernova'
+            ? 'radial-gradient(ellipse, rgba(244, 63, 94, 0.55) 0%, transparent 72%)'
+            : 'radial-gradient(ellipse, rgba(245, 158, 11, 0.45) 0%, transparent 72%)',
+          filter: 'blur(3.5px)',
+          transform: `scale(${currentScale * 0.95})`,
+          opacity: 0.85,
+        }}
+      />
+
+      <button
+        type="button"
+        onPointerDown={(e) => onTap(star, e)}
+        className="w-full h-full p-0 m-0 bg-transparent border-0 outline-none cursor-pointer relative flex items-center justify-center active:scale-90 transition-transform duration-75 ease-out"
+        style={{ 
+          touchAction: 'none',
+          transform: `scale(${currentScale}) rotateX(${tiltX}deg) rotateY(${tiltY}deg) rotateZ(${rotZ}deg)`,
+          transformStyle: 'preserve-3d',
+        }}
+      >
+        <CelestialStarGraphic
+          type={star.type}
+          size={star.size}
+          isTapped={isTapped}
+        />
+
+        {/* 3D Specular Light Gleam Sweep */}
+        <div 
+          className="absolute inset-0 pointer-events-none rounded-full overflow-hidden opacity-30 mix-blend-overlay"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 45%)',
+          }}
+        />
+      </button>
+    </div>
+  );
+});
+
 export const GameBoard: React.FC<GameBoardProps> = ({
   isPlaying,
   gameMode,
@@ -108,6 +185,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const [score, setScore] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number>(60);
   const [lives, setLives] = useState<number>(3);
+  const [matchElapsedSeconds, setMatchElapsedSeconds] = useState<number>(0);
   const [combo, setCombo] = useState<number>(0);
   const [maxCombo, setMaxCombo] = useState<number>(0);
   const [activeMultiplier, setActiveMultiplier] = useState<number>(1);
@@ -144,6 +222,52 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const [isFeverActive, setIsFeverActive] = useState<boolean>(false);
   const [feverTimeLeft, setFeverTimeLeft] = useState<number>(0);
 
+  // Calculate Progress Percentage for the Top Progress Capsule Bar (matching screenshot)
+  const calculatedProgress = useMemo(() => {
+    switch (gameMode) {
+      case 'campaign': {
+        const req = campaignLevel?.starRequirements[2] || 1000;
+        return Math.min(100, Math.max(15, Math.round((score / req) * 100)));
+      }
+      case 'blitz': {
+        const target = Math.max(500, playerState.stats.highestScore || 1000);
+        return Math.min(100, Math.max(10, Math.round((score / target) * 100)));
+      }
+      case 'fever': {
+        return Math.min(100, Math.max(10, Math.round(feverProgress)));
+      }
+      case 'duel': {
+        const rivalTarget = duelGhostRival?.score || 1000;
+        return Math.min(100, Math.max(10, Math.round((score / rivalTarget) * 100)));
+      }
+      case 'zen': {
+        return Math.min(100, Math.max(20, (score % 100) || 50));
+      }
+      default: {
+        // Endless: Progress towards personal best / milestone (starts at 80% like screenshot, advances dynamically)
+        const target = Math.max(800, playerState.stats.highestScore || 1200);
+        const p = Math.min(100, Math.round((score / target) * 100));
+        return score === 0 ? 80 : Math.max(15, p);
+      }
+    }
+  }, [gameMode, score, campaignLevel, playerState.stats.highestScore, feverProgress, duelGhostRival]);
+
+  // Dynamic Threat / Danger Level (1 to 4) based on match elapsed time & campaign level
+  const threatLevel = useMemo(() => {
+    if (gameMode === 'zen') return 1;
+    if (gameMode === 'campaign' && campaignLevel) {
+      const levelBase = Math.min(3, Math.floor((campaignLevel.id - 1) / 4) + 1);
+      const timeAdd = Math.floor(matchElapsedSeconds / 18);
+      return Math.min(4, Math.max(1, levelBase + timeAdd));
+    }
+    if (matchElapsedSeconds >= 50) return 4;
+    if (matchElapsedSeconds >= 32) return 3;
+    if (matchElapsedSeconds >= 15) return 2;
+    return 1;
+  }, [gameMode, campaignLevel, matchElapsedSeconds]);
+
+  const lastThreatLevelRef = useRef<number>(1);
+
   // Stats for match end breakdown
   const matchStatsRef = useRef({
     starsTapped: 0,
@@ -157,6 +281,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   const [stars, setStars] = useState<StarItem[]>([]);
   const [screenShake, setScreenShake] = useState<boolean>(false);
+  const [homeStarBooped, setHomeStarBooped] = useState<boolean>(false);
 
   // Canvas Particles, Floating Texts, Blade Trails & Slice Arcs
   const particlesRef = useRef<Particle[]>([]);
@@ -175,6 +300,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   // Spawn timing helper
   const nextSpawnId = useRef<number>(1);
+
+  // Throttle live progress achievement check to prevent main thread frame drops
+  const lastLiveProgressTimeRef = useRef<number>(0);
+  const lastLiveReportedScoreRef = useRef<number>(0);
+  const lastLiveReportedComboRef = useRef<number>(0);
 
   // Trigger Screen Shake
   const triggerShake = useCallback(() => {
@@ -212,11 +342,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = Math.random() * (speedMax - speedMin) + speedMin;
+      const vz = (Math.random() - 0.5) * (speed * 1.6);
       particlesRef.current.push({
         x,
         y,
+        z: 0,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
+        vz,
         color,
         size: Math.random() * (sizeMax - sizeMin) + sizeMin,
         alpha: 1,
@@ -380,6 +513,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     setTimeLeft(initialTime);
 
     setLives(3);
+    setMatchElapsedSeconds(0);
+    lastThreatLevelRef.current = 1;
 
     // Initial Shields from upgrades and active boosters
     const initialShields = (playerState.upgrades.bomb_shield || 0) + ((playerState.activeBoosters?.extra_shield || 0) > 0 ? 1 : 0);
@@ -450,10 +585,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [isPlaying, resetMatch, multiplayerOpponent]);
 
-  // Report live progress during gameplay for real-time achievement checking
+  // Report live progress during gameplay for real-time achievement checking (throttled to 1000ms / milestones)
   useEffect(() => {
-    if (isPlaying) {
-      onLiveProgress?.({
+    if (!isPlaying || !onLiveProgress) return;
+    const now = Date.now();
+    const comboMilestone = combo > 0 && combo % 10 === 0 && combo !== lastLiveReportedComboRef.current;
+    const scoreMilestone =
+      (score >= 300 && lastLiveReportedScoreRef.current < 300) ||
+      (score >= 700 && lastLiveReportedScoreRef.current < 700) ||
+      (score >= 1500 && lastLiveReportedScoreRef.current < 1500);
+
+    if (comboMilestone || scoreMilestone || now - lastLiveProgressTimeRef.current >= 1000) {
+      lastLiveProgressTimeRef.current = now;
+      lastLiveReportedScoreRef.current = score;
+      lastLiveReportedComboRef.current = combo;
+      onLiveProgress({
         score,
         combo,
         starsTapped: matchStatsRef.current.starsTapped,
@@ -462,6 +608,29 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       });
     }
   }, [score, combo, isPlaying, onLiveProgress]);
+
+  // Threat Level Alert Effect: Triggers audio cue, haptic, and warning banner as danger level escalates
+  useEffect(() => {
+    if (!isPlaying || matchCountdown !== null || isPaused || gameMode === 'zen') return;
+    if (threatLevel > lastThreatLevelRef.current) {
+      lastThreatLevelRef.current = threatLevel;
+      const rect = playAreaRef.current?.getBoundingClientRect();
+      const cx = (rect?.width || 350) / 2;
+      const cy = (rect?.height || 500) / 2;
+      let alertMsg = '⚠️ ¡NIVEL 2: MÁS BOMBAS!';
+      let alertColor = '#fbbf24';
+      if (threatLevel === 3) {
+        alertMsg = '🔥 ¡NIVEL 3: RIESGO ELEVADO!';
+        alertColor = '#f97316';
+      } else if (threatLevel === 4) {
+        alertMsg = '⚡ ¡NIVEL 4: CAOS CÓSMICO!';
+        alertColor = '#ef4444';
+      }
+      addFloatingText(alertMsg, cx, cy - 40, alertColor);
+      soundManager.playSupernova();
+      triggerShake();
+    }
+  }, [threatLevel, isPlaying, matchCountdown, isPaused, gameMode, addFloatingText, triggerShake]);
 
   // Spawning Stars Logic
   const spawnStar = useCallback(() => {
@@ -496,30 +665,54 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       else if (rand < 0.88) type = 'rainbow';
       else type = 'supernova';
     } else {
-      if (rand < 0.14 + luckyBonus) {
-        type = 'bomb';
-      } else if (rand < 0.33 + luckyBonus) {
-        type = 'golden';
-      } else if (rand < 0.43 + luckyBonus) {
-        type = 'diamond';
-      } else if (rand < 0.50) {
-        type = 'multiplier2';
-      } else if (rand < 0.55) {
-        type = 'multiplier5';
-      } else if (rand < 0.60) {
-        type = 'timeBonus';
-      } else if (rand < 0.65) {
-        type = 'shield';
-      } else if (rand < 0.70) {
-        type = 'freeze';
-      } else if (rand < 0.74) {
-        type = 'magnet';
-      } else if (rand < 0.78) {
-        type = 'rainbow';
-      } else if (rand < 0.83 + (luckyBonus > 0 ? 0.05 : 0)) {
-        type = 'supernova';
+      // Determine bomb chance dynamically based on match elapsed time and campaign level
+      let bombChance = 0.10;
+      if (campaignLevel?.noBombsAllowed) {
+        bombChance = 0;
       } else {
-        type = 'normal';
+        // Base bomb rate by mode and campaign level
+        if (gameMode === 'campaign' && campaignLevel) {
+          const levelFactor = Math.min(0.12, (campaignLevel.id - 1) * 0.012);
+          const bossFactor = campaignLevel.isBoss ? 0.06 : 0;
+          bombChance = 0.08 + levelFactor + bossFactor;
+        }
+
+        // Elapsed time escalation: increases as match time advances (more bombs over time)
+        const timeEscalation = Math.min(0.18, Math.floor(matchElapsedSeconds / 14) * 0.035);
+        bombChance += timeEscalation;
+
+        // Lucky charm & Astral Luck reduces bomb probability
+        bombChance = Math.max(0.06, Math.min(0.34, bombChance - luckyBonus * 0.4));
+      }
+
+      if (rand < bombChance) {
+        type = 'bomb';
+      } else {
+        // Proportional distribution of stars across the non-bomb probability space
+        const starRand = (rand - bombChance) / (1 - bombChance);
+        if (starRand < 0.22 + luckyBonus) {
+          type = 'golden';
+        } else if (starRand < 0.34 + luckyBonus) {
+          type = 'diamond';
+        } else if (starRand < 0.42) {
+          type = 'multiplier2';
+        } else if (starRand < 0.48) {
+          type = 'multiplier5';
+        } else if (starRand < 0.54) {
+          type = 'timeBonus';
+        } else if (starRand < 0.60) {
+          type = 'shield';
+        } else if (starRand < 0.66) {
+          type = 'freeze';
+        } else if (starRand < 0.71) {
+          type = 'magnet';
+        } else if (starRand < 0.76) {
+          type = 'rainbow';
+        } else if (starRand < 0.82 + (luckyBonus > 0 ? 0.05 : 0)) {
+          type = 'supernova';
+        } else {
+          type = 'normal';
+        }
       }
     }
 
@@ -570,19 +763,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
       return [...prev.slice(-10), newStar]; // cap max active stars on screen
     });
-  }, [isPlaying, isFeverActive, playerState, freezeTimeLeft, gameMode]);
+  }, [isPlaying, isFeverActive, playerState, freezeTimeLeft, gameMode, campaignLevel, matchElapsedSeconds]);
 
-  // Main Spawn Interval
+  // Main Spawn Interval (with dynamic slight acceleration according to threat level)
   useEffect(() => {
     if (!isPlaying || isConfirmingExit || isPaused || matchCountdown !== null || showReviveModal) return;
 
-    const spawnIntervalMs = isFeverActive ? 300 : (gameMode === 'fever' ? 350 : 550);
+    const baseSpawnInterval = isFeverActive ? 300 : (gameMode === 'fever' ? 350 : 550);
+    const threatSpeedReduction = (threatLevel - 1) * 35;
+    const spawnIntervalMs = Math.max(280, baseSpawnInterval - threatSpeedReduction);
+
     const interval = setInterval(() => {
       spawnStar();
     }, spawnIntervalMs);
 
     return () => clearInterval(interval);
-  }, [isPlaying, isConfirmingExit, isPaused, matchCountdown, showReviveModal, isFeverActive, gameMode, spawnStar]);
+  }, [isPlaying, isConfirmingExit, isPaused, matchCountdown, showReviveModal, isFeverActive, gameMode, threatLevel, spawnStar]);
 
   // Despawning & Timer Cleanup Tick
   useEffect(() => {
@@ -607,6 +803,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   }
                   return Math.max(0, nextL);
                 });
+                const rect = playAreaRef.current?.getBoundingClientRect();
+                const starX = (star.x / 100) * (rect?.width || 350);
+                const starY = (star.y / 100) * (rect?.height || 500);
+                addFloatingText('💔 -1 Vida', starX, starY, '#f87171');
+                soundManager.playLifeLost();
+                if (playerState.hapticsEnabled) hapticManager.mediumTap();
+                triggerShake();
               }
             }
             if (star.type === 'bomb') {
@@ -691,7 +894,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             addFloatingText(`+${pts} 🧲`, clickX, clickY, '#facc15');
           } else {
             changed = true;
-            const speed = 2.8;
+            const speed = 3.6;
             nextStars.push({
               ...star,
               x: star.x + (dx / dist) * speed,
@@ -702,7 +905,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
         return changed ? nextStars : prevStars;
       });
-    }, 50);
+    }, 70);
 
     return () => clearInterval(magnetInterval);
   }, [isPlaying, magnetTimeLeft, addStarBurstParticles, addFloatingText]);
@@ -773,18 +976,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   };
 
-  // Game Clock Countdown
+  // Game Clock Countdown & Match Elapsed Time
   useEffect(() => {
     if (!isPlaying || isConfirmingExit || isPaused || matchCountdown !== null || showReviveModal || gameMode === 'zen') return;
 
     const clockInterval = setInterval(() => {
-      setTimeLeft((prevTime) => {
-        if (prevTime <= 1) {
-          soundManager.playGameOver();
-          return 0;
-        }
-        return prevTime - 1;
-      });
+      setMatchElapsedSeconds((s) => s + 1);
+
+      if (gameMode !== 'endless') {
+        setTimeLeft((prevTime) => {
+          if (prevTime <= 1) {
+            soundManager.playGameOver();
+            return 0;
+          }
+          return prevTime - 1;
+        });
+      }
     }, 1000);
 
     return () => clearInterval(clockInterval);
@@ -793,7 +1000,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   // Check Game Over Conditions or Trigger Revive Prompt
   useEffect(() => {
     if (isPlaying && !isConfirmingExit && !isPaused && matchCountdown === null && !showReviveModal && gameMode !== 'zen') {
-      if (timeLeft <= 0 || (gameMode === 'endless' && lives <= 0)) {
+      const isTimeOut = gameMode !== 'endless' && timeLeft <= 0;
+      const isOutOfLives = lives <= 0;
+      if (isTimeOut || isOutOfLives) {
         if (multiplayerOpponent && onMultiplayerGameOver) {
           const isWinner = score >= opponentLiveScore;
           onMultiplayerGameOver(isWinner, score, opponentLiveScore, { ...matchStatsRef.current });
@@ -818,9 +1027,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
     hasUsedReviveRef.current = true;
     setShowReviveModal(false);
-    if (gameMode === 'endless') {
-      setLives(2);
-    } else {
+    setLives(2);
+    if (gameMode !== 'endless') {
       setTimeLeft(15);
     }
     soundManager.playRevive();
@@ -829,7 +1037,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     const cx = (rect?.width || 350) / 2;
     const cy = (rect?.height || 500) / 2;
     addParticles(cx, cy, '#10b981', 24, { shape: 'star', speedMin: 3, speedMax: 9, sizeMin: 8, sizeMax: 16 });
-    addFloatingText('✨ ¡REVIVIDO! (+15s / +2 Vidas) ✨', cx, cy - 40, '#34d399');
+    addFloatingText('✨ ¡REVIVIDO! (+2 Corazones) ✨', cx, cy - 40, '#34d399');
   };
 
   const handleReviveWithCoins = () => {
@@ -837,9 +1045,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     if (!success && playerState.coins < 100) return;
     hasUsedReviveRef.current = true;
     setShowReviveModal(false);
-    if (gameMode === 'endless') {
-      setLives(2);
-    } else {
+    setLives(2);
+    if (gameMode !== 'endless') {
       setTimeLeft(15);
     }
     soundManager.playRevive();
@@ -848,7 +1055,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     const cx = (rect?.width || 350) / 2;
     const cy = (rect?.height || 500) / 2;
     addParticles(cx, cy, '#f59e0b', 24, { shape: 'star', speedMin: 3, speedMax: 9, sizeMin: 8, sizeMax: 16 });
-    addFloatingText('✨ ¡REVIVIDO! ✨', cx, cy - 40, '#facc15');
+    addFloatingText('✨ ¡REVIVIDO! (+2 Corazones) ✨', cx, cy - 40, '#facc15');
   };
 
   const handleSkipRevive = () => {
@@ -920,6 +1127,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       if (currentCombo === 20) comboBanner = '👑 ¡COMBO x20 LEYENDA!';
       if (currentCombo >= 30) comboBanner = '🌌 ¡COMBO x30 DIOS CÓSMICO!';
       addFloatingText(comboBanner, clickX, clickY - 45, '#f59e0b');
+
+      // Reward player with +1 Star Power charge every 15 combo!
+      if (currentCombo % 15 === 0) {
+        setMagnetCharges((c) => Math.min(3, c + 1));
+        soundManager.playPowerup();
+        addFloatingText('⚡ ¡PODER RECARGADO! 🧲', clickX, clickY - 65, '#c084fc');
+      }
     }
 
     // Multi-slice combo bonus
@@ -975,7 +1189,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         }
         hapticManager.lightTap();
         addStarBurstParticles(clickX, clickY, 'normal');
-        addFloatingText(`+${pts}`, clickX, clickY, '#facc15');
+        addFloatingText(`+${pts} pt!`, clickX, clickY, '#facc15');
         break;
       }
 
@@ -986,7 +1200,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         soundManager.playTapGold();
         hapticManager.mediumTap();
         addStarBurstParticles(clickX, clickY, 'golden');
-        addFloatingText(`+${pts} 🌟`, clickX, clickY, '#f59e0b');
+        addFloatingText(`+${pts} pts!`, clickX, clickY, '#fde047');
         break;
       }
 
@@ -997,7 +1211,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         soundManager.playTapDiamond();
         hapticManager.heavyTap();
         addStarBurstParticles(clickX, clickY, 'diamond');
-        addFloatingText(`+${pts} 💎`, clickX, clickY, '#60a5fa');
+        addFloatingText(`+${pts} pts!`, clickX, clickY, '#38bdf8');
         break;
       }
 
@@ -1135,19 +1349,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         setCombo(0);
         triggerShake();
         soundManager.playBombExplosion();
+        soundManager.playLifeLost();
         hapticManager.bombExplosion();
         addBombExplosionParticles(clickX, clickY);
 
-        if (gameMode === 'endless') {
-          setLives((l) => {
-            const nextL = l - 1;
-            if (nextL <= 0) soundManager.playGameOver();
-            return Math.max(0, nextL);
-          });
-          addFloatingText('❌ ¡VIDA PERDIDA!', clickX, clickY, '#f87171');
+        setLives((l) => {
+          const nextL = l - 1;
+          if (nextL <= 0) soundManager.playGameOver();
+          return Math.max(0, nextL);
+        });
+
+        if (gameMode !== 'endless') {
+          setScore((s) => Math.max(0, s - 15));
+          addFloatingText('💔 -1 CORAZÓN (-15) 💥', clickX, clickY, '#f87171');
         } else {
-          setScore((s) => Math.max(0, s - 10));
-          addFloatingText('-10 BOMBA 💥', clickX, clickY, '#f87171');
+          addFloatingText('💔 -1 CORAZÓN 💥', clickX, clickY, '#f87171');
         }
         break;
       }
@@ -1172,8 +1388,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   ]);
 
   // Handle Tapping a Star Item
-  const handleTapStar = (star: StarItem, e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
+  const handleTapStar = (star: StarItem, e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
     if (!isPlaying || isConfirmingExit || isPaused || matchCountdown !== null || showReviveModal) return;
 
     // Get exact pixel location on play area for particles & floating text
@@ -1184,9 +1399,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     if ('clientX' in e && rect) {
       clickX = e.clientX - rect.left;
       clickY = e.clientY - rect.top;
-    } else if ('touches' in e && e.touches[0] && rect) {
-      clickX = e.touches[0].clientX - rect.left;
-      clickY = e.touches[0].clientY - rect.top;
+    } else if ('touches' in e && (e as React.TouchEvent).touches?.[0] && rect) {
+      clickX = (e as React.TouchEvent).touches[0].clientX - rect.left;
+      clickY = (e as React.TouchEvent).touches[0].clientY - rect.top;
     }
 
     processStarHit(star, clickX, clickY, false, 1, 0);
@@ -1416,6 +1631,28 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   };
 
+  // Interactive 3D Celestial Star Tap on Home Screen
+  const handleHomeStarTap = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    soundManager.playTapGold();
+    hapticManager.lightTap();
+    setHomeStarBooped(true);
+    setTimeout(() => setHomeStarBooped(false), 500);
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const parentRect = playAreaRef.current?.getBoundingClientRect() || rect;
+    if (floatingTextsRef.current) {
+      floatingTextsRef.current.push({
+        id: `star_${Date.now()}_${Math.random()}`,
+        text: '⭐ ¡TAP!',
+        x: rect.left - parentRect.left + rect.width / 2,
+        y: rect.top - parentRect.top,
+        color: '#fde047',
+        createdAt: Date.now(),
+      });
+    }
+  };
+
   return (
     <div
       ref={boardRef}
@@ -1440,97 +1677,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               language={playerState.language || 'es'}
             />
           ) : (
-            <div className="relative z-20 w-full p-3 flex items-center justify-between bg-slate-900/90 backdrop-blur-xl border-b border-slate-800/80 text-white shadow-xl animate-fade-in">
-              {/* Score & Multiplier */}
-              <div className="flex items-center gap-3">
-                <div className="flex flex-col bg-slate-950/80 px-3 py-1.5 rounded-2xl border border-amber-500/30 shadow-inner">
-                  <span className="text-[10px] font-extrabold text-amber-400 tracking-wider uppercase">PUNTOS</span>
-                  <div className="text-2xl font-black text-white tracking-tight drop-shadow-md">
-                    {score.toLocaleString()}
-                  </div>
-                </div>
-
-                {activeMultiplier > 1 && (
-                  <div className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 px-3 py-1.5 rounded-2xl text-xs font-black animate-pulse shadow-lg border border-pink-400/40">
-                    <Zap className="w-3.5 h-3.5 fill-white" />
-                    <span>x{activeMultiplier} ({multiplierTimeLeft}s)</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Center: Combo Indicator with 3D Pop & Cyber Energy Badge */}
-              {combo >= 3 && (
-                <div className="flex flex-col items-center animate-combo-mega z-30">
-                  <div className={`px-3.5 py-1 rounded-2xl border flex items-center gap-1.5 shadow-xl ${
-                    combo >= 10
-                      ? 'bg-gradient-to-r from-red-600 via-amber-500 to-yellow-400 border-yellow-200 text-slate-950 font-black shadow-amber-500/50 scale-110 animate-pulse'
-                      : combo >= 6
-                      ? 'bg-gradient-to-r from-purple-600 via-pink-500 to-amber-400 border-pink-300 text-white font-black shadow-pink-500/40'
-                      : 'bg-gradient-to-r from-amber-500/30 to-yellow-400/20 border-yellow-400/60 text-yellow-300 font-extrabold shadow-yellow-500/30'
-                  }`}>
-                    <Zap className={`w-3.5 h-3.5 fill-current ${combo >= 10 ? 'animate-bounce' : ''}`} />
-                    <span className="text-xs uppercase tracking-tight">
-                      COMBO x{combo}!
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Right: Timer / Lives & Active Powerups */}
-              <div className="flex items-center gap-2">
-                {shieldCount > 0 && (
-                  <div className="flex items-center gap-1.5 bg-cyan-950/80 border border-cyan-500/40 px-2.5 py-1 rounded-2xl text-cyan-300 text-xs font-bold shadow-inner">
-                    <Shield className="w-3.5 h-3.5 fill-cyan-400" />
-                    <span>x{shieldCount}</span>
-                  </div>
-                )}
-
-                {freezeTimeLeft > 0 && (
-                  <div className="flex items-center gap-1.5 bg-sky-950/80 border border-sky-500/40 px-2.5 py-1 rounded-2xl text-sky-300 text-xs font-bold animate-pulse shadow-inner">
-                    <span>❄️ {freezeTimeLeft}s</span>
-                  </div>
-                )}
-
-                {magnetTimeLeft > 0 && (
-                  <div className="flex items-center gap-1.5 bg-purple-950/80 border border-purple-500/40 px-2.5 py-1 rounded-2xl text-purple-300 text-xs font-bold animate-pulse shadow-inner">
-                    <span>🧲 {magnetTimeLeft}s</span>
-                  </div>
-                )}
-
-                {gameMode === 'endless' ? (
-                  <div className="flex items-center gap-1.5 bg-slate-950/70 px-3 py-1.5 rounded-2xl border border-slate-800/80 shadow-inner">
-                    {[1, 2, 3].map((heartIndex) => (
-                      <Heart
-                        key={heartIndex}
-                        className={`w-5 h-5 transition-all ${
-                          heartIndex <= lives
-                            ? 'text-red-500 fill-red-500 scale-110 drop-shadow'
-                            : 'text-slate-700 fill-slate-800 opacity-40'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                ) : gameMode === 'zen' ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex flex-col items-end bg-slate-950/70 px-3 py-1.5 rounded-2xl border border-emerald-500/30 shadow-inner">
-                      <span className="text-[10px] font-extrabold text-emerald-400 tracking-wider uppercase">Modo</span>
-                      <span className="text-xs font-black text-emerald-300">Zen 🧘</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-end bg-slate-950/80 px-3.5 py-1.5 rounded-2xl border border-cyan-500/30 shadow-inner">
-                    <span className="text-[10px] font-extrabold text-cyan-400 tracking-wider uppercase">TIEMPO</span>
-                    <div
-                      className={`text-2xl font-black tracking-tight ${
-                        timeLeft <= 10 ? 'text-red-400 animate-ping' : 'text-cyan-300'
-                      }`}
-                    >
-                      {timeLeft}s
-                    </div>
-                  </div>
-                )}
-
-                {/* Quick In-Game Pause Button */}
+            <div className="relative z-30 w-full flex flex-col shrink-0">
+              {/* Top Title Bar with Back Button and "Star ⭐ Tap" Logo */}
+              <div className="w-full px-4 pt-2.5 pb-1 flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => {
@@ -1538,33 +1687,96 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     setIsPaused(true);
                     if (playerState.hapticsEnabled) hapticManager.lightTap();
                   }}
-                  className="px-2.5 py-2 bg-slate-950/90 hover:bg-slate-800 text-amber-300 rounded-2xl border border-amber-500/40 transition-all active:scale-95 shadow-md flex items-center gap-1.5 text-xs font-extrabold cursor-pointer"
-                  title="Pausar partida"
+                  className="w-10 h-10 rounded-full bg-slate-900/80 border border-slate-700/80 flex items-center justify-center text-white hover:bg-slate-800 active:scale-95 transition-all shadow-md cursor-pointer"
+                  title="Volver / Pausa"
                 >
-                  <Pause className="w-3.5 h-3.5 fill-amber-300" />
-                  <span className="hidden xs:inline">Pausa</span>
+                  <ArrowLeft className="w-5 h-5 text-slate-200" />
                 </button>
 
-                {/* Exit Match Button (Prompts Confirmation Dialog) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    soundManager.playButtonClick();
-                    setIsConfirmingExit(true);
-                    if (playerState.hapticsEnabled) hapticManager.lightTap();
-                  }}
-                  className="px-2.5 py-2 bg-slate-950/90 hover:bg-rose-950/80 text-rose-300 hover:text-rose-100 rounded-2xl border border-rose-500/40 transition-all active:scale-95 shadow-md flex items-center gap-1.5 text-xs font-extrabold cursor-pointer group"
-                  title={t('exitButtonTooltip', playerState.language || 'es')}
-                >
-                  <LogOut className="w-3.5 h-3.5 text-rose-400 group-hover:scale-110 transition-transform" />
-                  <span className="hidden xs:inline">{t('exit', playerState.language || 'es')}</span>
-                </button>
+                <div className="flex items-center gap-1.5 font-black text-2xl sm:text-3xl tracking-wide select-none">
+                  <span className="bg-gradient-to-r from-pink-300 via-purple-200 to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(236,72,153,0.5)]">
+                    Star
+                  </span>
+                  <span className="text-xl sm:text-2xl animate-bounce drop-shadow-[0_0_8px_#fde047]">
+                    ⭐
+                  </span>
+                  <span className="bg-gradient-to-r from-purple-200 via-pink-200 to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(56,189,248,0.5)]">
+                    Tap
+                  </span>
+                </div>
+
+                <div className="w-10" />
+              </div>
+
+              {/* Unified High-Fidelity Neon HUD Box (exact match to screenshot) */}
+              <div className="mx-3 sm:mx-4 my-1.5 px-4 py-2.5 rounded-2xl sm:rounded-3xl border-2 border-indigo-400/90 shadow-[0_0_20px_rgba(99,102,241,0.6)] bg-gradient-to-r from-indigo-950/85 via-slate-950/90 to-indigo-950/85 backdrop-blur-md flex items-center justify-between">
+                {/* Left: 3D Glossy Red Hearts (or Mode Specific Indicator) */}
+                <div className="flex items-center gap-1.5">
+                  {[1, 2, 3].map((heartIndex) => (
+                    <GlossyRedHeart
+                      key={heartIndex}
+                      active={heartIndex <= lives}
+                      size={28}
+                    />
+                  ))}
+                  {gameMode === 'blitz' && (
+                    <span className={`ml-2 font-mono text-xs font-black px-2 py-0.5 rounded-full border ${
+                      timeLeft <= 10 ? 'bg-red-500/20 border-red-500 text-red-300 animate-pulse' : 'bg-cyan-950/60 border-cyan-500/40 text-cyan-300'
+                    }`}>
+                      ⏱ {timeLeft}s
+                    </span>
+                  )}
+                  {gameMode === 'endless' && (
+                    <span className="ml-2 font-mono text-xs font-black px-2 py-0.5 rounded-full border bg-amber-950/60 border-amber-500/40 text-amber-300">
+                      ⏱ {matchElapsedSeconds}s
+                    </span>
+                  )}
+                  {gameMode === 'campaign' && campaignLevel && (
+                    <span className="ml-2 font-mono text-xs font-black px-2 py-0.5 rounded-full border bg-purple-950/60 border-purple-500/40 text-purple-300">
+                      ⏱ {timeLeft}s
+                    </span>
+                  )}
+                  {/* Dynamic Threat Level / Peligro Indicator badge */}
+                  {gameMode !== 'zen' && threatLevel > 1 && (
+                    <span className={`ml-1 font-mono text-[10px] font-black px-1.5 py-0.5 rounded-md border flex items-center gap-0.5 ${
+                      threatLevel === 4
+                        ? 'bg-red-500/30 border-red-400 text-red-200 animate-pulse'
+                        : threatLevel === 3
+                        ? 'bg-orange-500/25 border-orange-400 text-orange-200'
+                        : 'bg-amber-500/20 border-amber-400 text-amber-200'
+                    }`}>
+                      {threatLevel === 4 ? '⚡ Nv.4' : threatLevel === 3 ? '🔥 Nv.3' : '⚠️ Nv.2'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Center: Large Clean Score (1,480) */}
+                <div className="flex flex-col items-center">
+                  <div className="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider drop-shadow-[0_2px_10px_rgba(255,255,255,0.45)]">
+                    {score.toLocaleString()}
+                  </div>
+                  {activeMultiplier > 1 && (
+                    <span className="text-[10px] font-black text-pink-300 uppercase tracking-wider animate-pulse">
+                      x{activeMultiplier} MULTI ({multiplierTimeLeft}s)
+                    </span>
+                  )}
+                </div>
+
+                {/* Right: Glowing Cyan Starburst COMBO Badge */}
+                <div className="flex flex-col items-center justify-center bg-cyan-500/20 border border-cyan-400/60 shadow-[0_0_20px_#38bdf8] rounded-2xl px-3 py-1 min-w-[72px]">
+                  <span className="text-[10px] font-black tracking-widest text-cyan-200 uppercase">
+                    COMBO
+                  </span>
+                  <span className="text-xl sm:text-2xl font-black text-amber-300 drop-shadow-[0_0_10px_#fde047] font-mono leading-tight">
+                    x{combo > 0 ? combo : 1}
+                  </span>
+                </div>
               </div>
             </div>
           )}
 
           {/* Fever Meter Bar (Under Top HUD) */}
-          <div className="relative z-20 w-full h-2 bg-slate-900 overflow-hidden">
+          <div className="relative z-20 w-full h-1.5 bg-slate-900/60 overflow-hidden">
             <div
               className={`h-full transition-all duration-300 ${
                 isFeverActive
@@ -1658,16 +1870,41 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
       )}
 
-      {/* Active Game Field - Spawning Stars Area */}
-      <div
-        ref={playAreaRef}
-        className="relative flex-1 w-full h-full overflow-hidden select-none touch-none"
-        style={{ touchAction: 'none' }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-      >
+      {/* Playfield Container Frame (matching reference screenshot) */}
+      <div className={`relative flex-1 flex flex-col overflow-hidden transition-all ${
+        isPlaying ? 'mx-3 sm:mx-4 mb-2 rounded-[2rem] border-2 border-purple-500/50 shadow-[0_0_25px_rgba(168,85,247,0.35)] bg-[#0a0720]' : 'w-full h-full'
+      }`}>
+        {/* Upper Section: Golden Star & Progress Capsule Bar (from screenshot) */}
+        {isPlaying && (
+          <div className="relative z-20 w-full px-4 pt-3 pb-1 flex items-center gap-2.5">
+            <GoldenCapsuleStar size={34} />
+            <div className="relative flex-1 h-6 sm:h-7 rounded-full bg-slate-950/90 border-2 border-amber-400/70 shadow-[0_0_15px_rgba(245,158,11,0.35)] overflow-hidden flex items-center p-0.5">
+              {/* Luminous Glow Fill Bar */}
+              <div
+                className="h-full bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 shadow-[0_0_18px_rgba(245,158,11,0.9)] transition-all duration-300 rounded-full relative overflow-hidden"
+                style={{ width: `${calculatedProgress}%` }}
+              >
+                {/* Specular Upper Glass Reflection Highlight */}
+                <div className="absolute top-0 inset-x-1 h-1/2 bg-gradient-to-b from-white/50 to-transparent rounded-t-full pointer-events-none" />
+              </div>
+              {/* Central Crisp Percentage Indicator */}
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] font-mono tracking-wider select-none">
+                {calculatedProgress}%
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Active Game Field - Spawning Stars Area */}
+        <div
+          ref={playAreaRef}
+          className="relative flex-1 w-full h-full overflow-hidden select-none touch-none"
+          style={{ touchAction: 'none' }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+        >
         {/* Particle & Slicing Blade Canvas Layer directly aligned with playfield coordinate system */}
         <ArcadeCanvas
           particlesRef={particlesRef}
@@ -1693,8 +1930,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               onOpenShop={onOpenShop}
             />
 
-            {/* Bento Grid Header Card */}
-            <div className="aaa-glass-cyber p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] max-w-sm w-full flex flex-col items-center relative overflow-hidden animate-fade-in shrink-0 my-auto border border-cyan-500/30">
+            {/* Bento Grid Header Card - Redesigned to match Google Play Store Home Artwork */}
+            <div className="aaa-glass-cyber p-4 sm:p-5 rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] max-w-sm w-full flex flex-col items-center relative overflow-hidden animate-fade-in shrink-0 my-auto border border-cyan-500/40 ring-1 ring-amber-400/20">
               {/* Holographic Top Laser Accent */}
               <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 animate-shimmer" />
 
@@ -1705,25 +1942,36 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               <div className="aaa-hud-corner-br text-cyan-400/80" />
 
               {/* Top Telemetry Header Tag */}
-              <div className="flex items-center gap-2 mb-2 px-2.5 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-[9px] font-mono text-cyan-300 tracking-widest uppercase">
+              <div className="flex items-center gap-2 mb-2 px-3 py-0.5 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-[9px] font-mono text-cyan-300 tracking-widest uppercase shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-                <span>ARCADE // READY</span>
+                <span>STAR TAP ARCADE // SISTEMA LISTO</span>
               </div>
               
-              <div className="relative mb-3 mt-1">
-                {/* Glowing Outer Rings */}
-                <div className="absolute -inset-2 rounded-full bg-gradient-to-tr from-amber-500/30 to-purple-500/30 blur-md animate-pulse" />
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-amber-400 via-yellow-300 to-orange-500 flex items-center justify-center text-3xl sm:text-4xl shadow-[0_10px_25px_rgba(245,158,11,0.5)] border-2 border-yellow-100 relative z-10 animate-star-pulse">
-                  {gameMode === 'duel' ? '⚔️' : '⭐'}
-                </div>
-                <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-yellow-200 animate-spin z-20 drop-shadow-[0_0_8px_rgba(253,224,71,0.8)]" />
+              {/* 3D WebGL Celestial Star Centerpiece - Studio Grade Quality */}
+              <div className="relative mb-2 mt-0.5 flex items-center justify-center">
+                {/* Concentric Glowing Energy Rings */}
+                <div className="absolute w-28 h-28 rounded-full bg-gradient-to-tr from-amber-500/25 via-yellow-400/35 to-purple-500/25 blur-xl animate-pulse" />
+
+                {/* Real-time WebGL 3D Rotating & Interactive Star */}
+                <ThreeHeroStarCanvas
+                  type={gameMode === 'duel' ? 'supernova' : 'golden'}
+                  isBooped={homeStarBooped}
+                  onTap={handleHomeStarTap}
+                  className="w-24 h-24 sm:w-28 sm:h-28"
+                />
+
+                {/* Sparkling Glints */}
+                <Sparkles className="absolute -top-1 -right-2 w-6 h-6 text-yellow-200 animate-spin z-20 drop-shadow-[0_0_10px_rgba(253,224,71,0.9)] pointer-events-none" style={{ animationDuration: '6s' }} />
+                <Sparkles className="absolute -bottom-1 -left-2 w-4 h-4 text-cyan-300 animate-pulse z-20 drop-shadow-[0_0_6px_rgba(56,189,248,0.8)] pointer-events-none" />
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-black text-white mb-1 tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] uppercase">
+              {/* Title with Gold Holographic Gradient */}
+              <h2 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 mb-1 tracking-tight drop-shadow-[0_2px_12px_rgba(245,158,11,0.5)] uppercase">
                 {gameMode === 'duel' ? t('duelTitleOverlay', playerState.language || 'es') : t('arcadeTitle', playerState.language || 'es')}
               </h2>
 
-              <p className="text-slate-300 text-[11px] sm:text-xs mb-3 font-medium leading-relaxed bg-slate-950/90 p-2.5 rounded-2xl border border-slate-800/90 w-full shadow-inner">
+              {/* Mode Description Banner */}
+              <p className="text-slate-300 text-[11px] sm:text-xs mb-2.5 font-medium leading-tight bg-slate-950/90 py-2 px-3 rounded-2xl border border-slate-800/90 w-full shadow-inner text-center">
                 {gameMode === 'blitz' && t('blitzDesc', playerState.language || 'es')}
                 {gameMode === 'endless' && t('endlessDesc', playerState.language || 'es')}
                 {gameMode === 'fever' && t('feverDesc', playerState.language || 'es')}
@@ -1731,20 +1979,54 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 {gameMode === 'duel' && t('duelDesc', playerState.language || 'es')}
               </p>
 
-              {/* Player Stats Record Badge */}
-              <div className="w-full mb-3 px-3.5 py-2 bg-gradient-to-r from-amber-950/50 via-slate-950/90 to-slate-950/90 rounded-2xl border border-amber-500/40 flex items-center justify-between text-xs shadow-inner">
-                <div className="flex items-center gap-2 text-slate-300 font-black text-[11px] sm:text-xs">
-                  <Trophy className="w-4 h-4 text-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
-                  <span className="uppercase tracking-wider text-[10px] text-amber-200">RÉCORD MÁXIMO:</span>
+              {/* Quick Game Mode Selector Bar (Directly accessible pills as in Google Play Home) */}
+              {setGameMode && (
+                <div className="w-full flex items-center justify-between gap-1 mb-2.5 p-1 bg-slate-950/90 rounded-2xl border border-cyan-500/20 shadow-inner">
+                  {[
+                    { id: 'blitz' as GameMode, label: 'Blitz', icon: '⏱️' },
+                    { id: 'endless' as GameMode, label: 'Vidas', icon: '❤️' },
+                    { id: 'fever' as GameMode, label: 'Fiebre', icon: '🔥' },
+                    { id: 'duel' as GameMode, label: 'Duelo', icon: '⚔️' },
+                    { id: 'zen' as GameMode, label: 'Zen', icon: '🧘' },
+                  ].map((m) => {
+                    const isSelected = gameMode === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          soundManager.playButtonClick();
+                          hapticManager.mediumTap();
+                          setGameMode(m.id);
+                        }}
+                        className={`flex-1 py-1 sm:py-1.5 px-0.5 rounded-xl text-[10px] sm:text-[11px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 shadow-[0_0_12px_rgba(245,158,11,0.6)] border border-yellow-200 scale-102'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+                        }`}
+                        title={m.label}
+                      >
+                        <span className="text-xs leading-none">{m.icon}</span>
+                        <span className="truncate leading-none">{m.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <span className="font-black text-amber-300 text-xs sm:text-sm font-mono drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">
+              )}
+
+              {/* Player Stats Record Badge */}
+              <div className="w-full mb-2.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-950/60 via-slate-950/95 to-slate-950/90 rounded-2xl border border-amber-500/40 flex items-center justify-between text-xs shadow-inner">
+                <div className="flex items-center gap-2 text-slate-300 font-black text-[11px] sm:text-xs">
+                  <Trophy className="w-4 h-4 text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.7)]" />
+                  <span className="uppercase tracking-wider text-[10px] text-amber-200">RÉCORD HISTÓRICO:</span>
+                </div>
+                <span className="font-black text-amber-300 text-xs sm:text-sm font-mono drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]">
                   {playerState.stats.highestScore.toLocaleString()} pts
                 </span>
               </div>
 
               {/* Ghost Target Card in Duel Mode */}
               {gameMode === 'duel' && (
-                <div className="w-full mb-3 p-2.5 bg-gradient-to-r from-purple-950/80 to-slate-950/90 rounded-2xl border border-purple-500/50 flex items-center justify-between shadow-inner">
+                <div className="w-full mb-2.5 p-2.5 bg-gradient-to-r from-purple-950/80 to-slate-950/90 rounded-2xl border border-purple-500/50 flex items-center justify-between shadow-inner">
                   <div className="flex items-center gap-2">
                     <div className="w-9 h-9 rounded-xl bg-purple-900/90 border border-purple-400 flex items-center justify-center text-lg shadow-lg">
                       {duelGhostRival ? duelGhostRival.avatar : '👻'}
@@ -1772,35 +2054,37 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </div>
               )}
 
-              {/* Action Buttons: Start Game + Mode Switcher Button */}
-              <div className="w-full flex items-center gap-2.5">
+              {/* Massive Radiant 3D Keycap Action Button "¡JUGAR! / PLAY NOW" */}
+              <div className="w-full flex items-center gap-2 pt-1">
                 <button
                   data-tutorial="play-button"
                   onClick={onStartGame}
-                  className="aaa-btn-gold flex-1 py-3.5 sm:py-4 font-black text-sm rounded-2xl flex items-center justify-center gap-2 tracking-wider uppercase cursor-pointer"
+                  className="relative group w-full py-3.5 sm:py-4 px-4 bg-gradient-to-b from-yellow-300 via-amber-400 to-amber-500 hover:from-yellow-200 hover:via-amber-300 hover:to-amber-400 text-slate-950 font-black rounded-2xl flex items-center justify-center gap-2.5 shadow-[0_6px_0_#b45309,0_16px_30px_rgba(245,158,11,0.5)] hover:shadow-[0_6px_0_#b45309,0_20px_40px_rgba(245,158,11,0.7)] border-t border-yellow-100 transition-all active:translate-y-[4px] active:shadow-[0_2px_0_#b45309,0_6px_15px_rgba(245,158,11,0.35)] cursor-pointer overflow-hidden uppercase"
                 >
-                  {gameMode === 'duel' ? <Swords className="w-5 h-5 fill-slate-950 stroke-[2.5]" /> : <Zap className="w-5 h-5 fill-slate-950 stroke-[2.5]" />}
-                  <span className="font-black text-xs sm:text-sm tracking-wider">{gameMode === 'duel' ? t('startDuelGame', playerState.language || 'es') : t('startGame', playerState.language || 'es')}</span>
-                </button>
+                  {/* Specular Top Sheen Highlight */}
+                  <div className="absolute top-0 inset-x-2 h-1/2 bg-gradient-to-b from-white/60 to-transparent rounded-t-xl pointer-events-none" />
 
-                {setGameMode && (
-                  <button
-                    data-tutorial="mode-selector"
-                    onClick={() => {
-                      soundManager.playButtonClick();
-                      hapticManager.lightTap();
-                      setIsModeSelectorOpen((prev) => !prev);
-                    }}
-                    className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex items-center justify-center shadow-lg active:scale-95 cursor-pointer ${
-                      isModeSelectorOpen
-                        ? 'bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 border-yellow-200 shadow-[0_0_20px_rgba(245,158,11,0.6)] scale-105'
-                        : 'bg-slate-950/90 hover:bg-slate-800 text-amber-400 border-amber-500/40 hover:border-amber-300'
-                    }`}
-                    title={t('selectGameMode', playerState.language || 'es')}
-                  >
-                    <Gamepad2 className="w-5 h-5" />
-                  </button>
-                )}
+                  {/* Shimmer Wave Across Button */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/35 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
+
+                  {gameMode === 'duel' ? (
+                    <Swords className="w-5 h-5 fill-slate-950 stroke-[2.5] drop-shadow-sm shrink-0" />
+                  ) : (
+                    <Zap className="w-5 h-5 fill-slate-950 stroke-[2.5] drop-shadow-sm shrink-0 animate-bounce" />
+                  )}
+                  <div className="flex flex-col items-center leading-none">
+                    <span className="font-black text-sm sm:text-base tracking-widest drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]">
+                      {gameMode === 'duel' ? t('startDuelGame', playerState.language || 'es') : '¡JUGAR AHORA!'}
+                    </span>
+                    <span className="text-[9px] font-extrabold text-amber-950 tracking-wider mt-0.5 opacity-90">
+                      {gameMode === 'blitz' && '60s CONTRA RELOJ'}
+                      {gameMode === 'endless' && '3 VIDAS • ESQUIVA BOMBAS'}
+                      {gameMode === 'fever' && 'RITMO RÁPIDO & COMBOS'}
+                      {gameMode === 'zen' && 'PRÁCTICA SIN LÍMITES'}
+                      {gameMode === 'duel' && 'DESAFÍO GLOBAL 1v1'}
+                    </span>
+                  </div>
+                </button>
               </div>
 
               {/* Mode Selector Overlay Popup */}
@@ -1942,118 +2226,79 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
         )}
 
-        {/* Render Spawning Stars */}
+        {/* Render Spawning Stars with High-Fidelity 3D Celestial Graphics */}
         {isPlaying &&
-          stars.map((star) => {
-            const style = getStarStyle(star.type);
-            const isBomb = star.type === 'bomb';
-            const isDiamond = star.type === 'diamond';
-            const isGolden = star.type === 'golden';
-            const isFever = star.type === 'fever';
-
-            return (
-              <div
-                key={star.id}
-                className="absolute flex items-center justify-center pointer-events-auto will-change-transform"
-                style={{
-                  left: `${star.x}%`,
-                  top: `${star.y}%`,
-                  width: `${star.size}px`,
-                  height: `${star.size}px`,
-                  transform: 'translate3d(-50%, -50%, 0)',
-                }}
-              >
-                <div className="relative w-full h-full min-w-[54px] min-h-[54px] flex items-center justify-center">
-                  {/* Ambient Glow Aura */}
-                  <div
-                    className="absolute inset-0 rounded-full blur-md opacity-60 pointer-events-none"
-                    style={{ backgroundColor: style.glowColor }}
-                  />
-
-                  {/* Diamond Orbiting Ring */}
-                  {isDiamond && (
-                    <div className="absolute -inset-2.5 rounded-full border border-sky-400/50 animate-star-orbit pointer-events-none">
-                      <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-cyan-200 shadow-[0_0_6px_#38bdf8]" />
-                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-cyan-200 shadow-[0_0_6px_#38bdf8]" />
-                    </div>
-                  )}
-
-                  {/* Golden Star Sunburst Halo */}
-                  {isGolden && (
-                    <div className="absolute -inset-2 rounded-full border-2 border-yellow-300/40 animate-pulse pointer-events-none" />
-                  )}
-
-                  {/* Fever Prism Shimmer */}
-                  {isFever && (
-                    <div className="absolute -inset-2 rounded-full border border-pink-400/50 animate-spin pointer-events-none" style={{ animationDuration: '4s' }} />
-                  )}
-
-                  {/* Main Interactive Star Button */}
-                  <button
-                    type="button"
-                    onMouseDown={(e) => handleTapStar(star, e)}
-                    onTouchStart={(e) => handleTapStar(star, e)}
-                    className={`w-full h-full flex items-center justify-center rounded-full bg-gradient-to-tr ${style.bg} ${style.ring} ring-4 shadow-[0_8px_25px_rgba(0,0,0,0.5)] active:scale-90 transition-transform duration-75 ease-out cursor-pointer relative z-10 select-none ${
-                      isBomb ? 'animate-bomb-hazard' : ''
-                    }`}
-                    style={{
-                      filter: `drop-shadow(0 6px 10px ${style.shadowColor})`,
-                    }}
-                  >
-                    {/* Top Specular Gloss Highlight */}
-                    <div className="absolute top-1 left-2 right-2 h-1/3 bg-gradient-to-b from-white/40 to-transparent rounded-t-full pointer-events-none" />
-
-                    <span className="text-2xl sm:text-3xl select-none animate-star-pulse pointer-events-none">
-                      {style.icon}
-                    </span>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-
-        {/* Floating Star Magnet Button */}
-        {isPlaying && (
-          <div className="absolute bottom-12 right-3 sm:bottom-14 sm:right-4 z-30">
-            <button
-              onClick={activateMagnet}
-              disabled={magnetCharges <= 0 || magnetTimeLeft > 0}
-              className={`px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl font-black text-xs shadow-xl border flex items-center gap-2 transition-all active:scale-95 ${
-                magnetTimeLeft > 0
-                  ? 'bg-purple-600 text-white border-purple-300 animate-pulse shadow-purple-500/50'
-                  : magnetCharges > 0
-                  ? 'bg-gradient-to-r from-purple-600 via-fuchsia-500 to-pink-500 text-white border-pink-300/60 hover:scale-105 shadow-purple-900/40 cursor-pointer'
-                  : 'bg-slate-900/80 text-slate-500 border-slate-800 opacity-60 cursor-not-allowed'
-              }`}
-            >
-              <span className="text-base sm:text-lg animate-bounce">🧲</span>
-              <div className="flex flex-col text-left">
-                <span className="text-[9px] sm:text-[10px] tracking-wider uppercase text-purple-200 font-extrabold">
-                  {magnetTimeLeft > 0 ? 'IMÁN ACTIVO' : 'IMÁN DE ESTRELLAS'}
-                </span>
-                <span className="text-[11px] sm:text-xs font-black">
-                  {magnetTimeLeft > 0 ? `${magnetTimeLeft}s` : `ACTIVAR (${magnetCharges})`}
-                </span>
-              </div>
-            </button>
-          </div>
-        )}
+          stars.map((star) => (
+            <StarItemRenderer
+              key={star.id}
+              star={star}
+              isTapped={tappedStarsSetRef.current.has(star.id)}
+              onTap={handleTapStar}
+            />
+          ))}
       </div>
 
-      {/* Bottom Status Bar during Game */}
+      {/* Bottom In-Game Controls Bar (Pause, Sound, and Star Power Button) */}
       {isPlaying && (
-        <div className="relative z-20 w-full px-3 sm:px-4 py-1.5 bg-slate-900/90 backdrop-blur-sm border-t border-slate-800 flex items-center justify-between text-[11px] sm:text-xs text-slate-300 safe-pb shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-amber-400 font-bold">Modo:</span>
-            <span className="capitalize text-slate-200">{gameMode}</span>
+        <div className="relative z-30 w-full px-4 py-3 flex items-center justify-between pointer-events-auto bg-slate-950/70 backdrop-blur-md border-t border-purple-500/30 rounded-b-[1.8rem] shrink-0">
+          {/* Left: Circular Pause & Sound Buttons */}
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playButtonClick();
+                setIsPaused(true);
+                if (playerState.hapticsEnabled) hapticManager.lightTap();
+              }}
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-b from-sky-400 via-blue-600 to-indigo-950 border-2 border-cyan-300 shadow-[0_0_16px_rgba(56,189,248,0.6)] flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              title="Pausa"
+            >
+              <Pause className="w-5 h-5 fill-white text-white drop-shadow" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (onToggleSound) {
+                  onToggleSound();
+                } else {
+                  soundManager.setMuted(!soundManager.getMuted());
+                }
+                if (playerState.hapticsEnabled) hapticManager.lightTap();
+              }}
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-b from-sky-400 via-blue-600 to-indigo-950 border-2 border-cyan-300 shadow-[0_0_16px_rgba(56,189,248,0.6)] flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              title="Sonido"
+            >
+              {playerState.soundEnabled ? (
+                <Volume2 className="w-5 h-5 text-white drop-shadow" />
+              ) : (
+                <VolumeX className="w-5 h-5 text-slate-400 drop-shadow" />
+              )}
+            </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span>Racha Máxima:</span>
-            <span className="font-extrabold text-yellow-300">{maxCombo}x</span>
-          </div>
+          {/* Right: Star Ability / Power Button */}
+          <button
+            type="button"
+            onClick={activateMagnet}
+            disabled={magnetCharges <= 0 || magnetTimeLeft > 0}
+            className={`px-5 py-2.5 rounded-full border-2 transition-all flex items-center gap-2 font-black text-sm active:scale-95 cursor-pointer shadow-lg select-none ${
+              magnetTimeLeft > 0
+                ? 'bg-gradient-to-r from-purple-600 via-pink-500 to-amber-400 border-yellow-200 text-white animate-pulse shadow-[0_0_20px_rgba(236,72,153,0.7)]'
+                : magnetCharges > 0
+                ? 'bg-gradient-to-b from-sky-400 via-blue-600 to-indigo-950 border-cyan-300 text-white shadow-[0_0_18px_rgba(56,189,248,0.6)] hover:scale-105'
+                : 'bg-slate-900/80 border-slate-700 text-slate-400 opacity-60 cursor-not-allowed'
+            }`}
+            title="Poder Estelar"
+          >
+            <span className="text-xl animate-bounce drop-shadow-[0_0_8px_#fde047]">⭐</span>
+            <span className="tracking-wide text-xs sm:text-sm font-black">
+              {magnetTimeLeft > 0 ? `${magnetTimeLeft}s` : 'PODER'}
+            </span>
+          </button>
         </div>
       )}
+    </div>
 
       {/* Exit Match Confirmation Dialog */}
       {isConfirmingExit && (

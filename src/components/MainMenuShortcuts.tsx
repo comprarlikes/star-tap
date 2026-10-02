@@ -26,7 +26,7 @@ export const MainMenuTopShortcuts: React.FC<MainMenuShortcutsProps> = ({
   onOpenShop,
 }) => {
   const isEn = playerState.language === 'en';
-  const passTier = playerState.cosmicPass?.currentTier || 1;
+  const passTier = playerState.cosmicPass?.currentTier || Math.min(30, Math.floor((playerState.cosmicPass?.currentXp || 0) / 250)) || 1;
 
   const handleShortcutClick = (callback?: () => void) => {
     soundManager.playButtonClick();

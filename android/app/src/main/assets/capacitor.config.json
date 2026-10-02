@@ -2,6 +2,7 @@
 	"appId": "com.startap.arcade",
 	"appName": "Star Tap Arcade",
 	"webDir": "dist",
+	"backgroundColor": "#0b0f17",
 	"server": {
 		"androidScheme": "https"
 	}

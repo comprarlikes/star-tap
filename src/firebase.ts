@@ -1,5 +1,11 @@
 import { initializeApp } from 'firebase/app';
 import { 
+  getAnalytics, 
+  isSupported as isAnalyticsSupported, 
+  logEvent, 
+  Analytics 
+} from 'firebase/analytics';
+import { 
   getAuth, 
   signInAnonymously, 
   onAuthStateChanged, 
@@ -28,6 +34,33 @@ import { PlayerState, LeaderboardEntry } from './types';
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
+// Initialize Firebase Analytics (safe for browser environments)
+export let analytics: Analytics | null = null;
+if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
+  isAnalyticsSupported()
+    .then((supported) => {
+      if (supported) {
+        analytics = getAnalytics(app);
+        logEvent(analytics, 'app_open');
+        logEvent(analytics, 'page_view', { page_title: 'Star Tap Arcade' });
+      }
+    })
+    .catch((err) => {
+      console.warn('Firebase Analytics not supported in this environment:', err);
+    });
+}
+
+// Track custom game event helper
+export const trackGameEvent = (eventName: string, params?: Record<string, unknown>) => {
+  if (analytics) {
+    try {
+      logEvent(analytics, eventName, params);
+    } catch {
+      // Ignore tracking errors
+    }
+  }
+};
+
 // Initialize Firebase Auth
 export const auth = getAuth(app);
 
@@ -48,8 +81,15 @@ export const initAuth = (onUserAuthenticated?: (user: FirebaseUser) => void) => 
         if (onUserAuthenticated && cred.user) {
           onUserAuthenticated(cred.user);
         }
-      } catch (err) {
-        console.warn('Firebase anonymous auth warning:', err);
+      } catch (err: unknown) {
+        const authErr = err as { code?: string; message?: string };
+        if (authErr?.code === 'auth/operation-not-allowed') {
+          console.warn(
+            '⚠️ [Firebase]: El proveedor de inicio de sesión "Anónimo" está deshabilitado. Ve a tu Firebase Console > Authentication > Sign-in method y habilita "Anónimo".'
+          );
+        } else {
+          console.warn('Firebase anonymous auth warning:', err);
+        }
       }
     }
   });

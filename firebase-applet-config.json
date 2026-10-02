@@ -1,11 +1,12 @@
 {
   "projectId": "star-tap-arcade",
-  "appId": "1:7470666231:android:d9f892264226e87b9b1ef2",
-  "apiKey": "AIzaSyA1PDQmQxs2Gsh2H02kR-gn6gjIeN695no",
+  "appId": "1:7470666231:web:105cf2b2829e5edf9b1ef2",
+  "apiKey": "AIzaSyDW0awwtFiMUW7bKv_piq5h5Z44tPdwYYE",
   "authDomain": "star-tap-arcade.firebaseapp.com",
+  "databaseURL": "https://star-tap-arcade-default-rtdb.firebaseio.com",
   "storageBucket": "star-tap-arcade.firebasestorage.app",
   "messagingSenderId": "7470666231",
-  "measurementId": "",
+  "measurementId": "G-88MC3KLFBT",
   "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

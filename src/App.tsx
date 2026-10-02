@@ -14,7 +14,8 @@ import {
   DirectChallenge,
   CampaignLevel,
   CampaignProgress,
-  CosmicPassReward
+  CosmicPassReward,
+  CosmicPassState
 } from './types';
 import { 
   loadPlayerState, 
@@ -42,7 +43,8 @@ import {
   savePlayerStateToCloud, 
   loadPlayerStateFromCloud, 
   saveScoreToCloudLeaderboard, 
-  subscribeCloudLeaderboard 
+  subscribeCloudLeaderboard,
+  trackGameEvent
 } from './firebase';
 import { HeaderHUD } from './components/HeaderHUD';
 import { GameBoard } from './components/GameBoard';
@@ -66,6 +68,7 @@ import { AuthModal } from './components/AuthModal';
 import { getAvatarById } from './data/avatars';
 import { EuConsentModal } from './components/EuConsentModal';
 import { SplashScreen } from './components/SplashScreen';
+import { CosmicBackground } from './components/CosmicBackground';
 import { DailyLoginBonusModal } from './components/DailyLoginBonusModal';
 import { LuckySpinModal } from './components/LuckySpinModal';
 import { MultiplayerLobbyModal } from './components/MultiplayerLobbyModal';
@@ -73,7 +76,7 @@ import { MultiplayerVersusShowdown } from './components/MultiplayerVersusShowdow
 import { DuelVersusShowdown } from './components/DuelVersusShowdown';
 import { MultiplayerResultModal } from './components/MultiplayerResultModal';
 import { ARENAS } from './data/multiplayerArenas';
-import { initializeAdMob, showRewardedAd, showInterstitialAd } from './services/admob';
+import { initializeAdMob, showRewardedAd, showInterstitialAd, notifyMatchFinishedForAds } from './services/admob';
 import { hapticManager } from './services/haptics';
 import { 
   initNotifications, 
@@ -159,15 +162,16 @@ export default function App() {
     }
   }, [toastQueue, activeAchievementToast]);
 
-  // Real-time gameplay achievement & quest check
+  // Real-time gameplay achievement & quest check (optimized: only re-renders on actual unlocks)
   const handleLiveProgress = useCallback(
     (liveStats: { score: number; combo: number; starsTapped: number; diamond: number; golden: number }) => {
       // 1. Check Achievements
       setAchievements((prevAch) => {
         const newlyUnlocked: ToastItem[] = [];
-        let hasChanges = false;
 
         const updated = prevAch.map((ach) => {
+          if (ach.unlocked) return ach;
+
           let newProgress = ach.progress;
           const totalStars = playerState.stats.totalStarsTapped + liveStats.starsTapped;
           const totalDiamonds = playerState.stats.diamondTapped + liveStats.diamond;
@@ -187,9 +191,7 @@ export default function App() {
 
           const isUnlocked = newProgress >= ach.target;
 
-          if (isUnlocked && !ach.unlocked) {
-            hasChanges = true;
-            const unlockedItem = { ...ach, progress: newProgress, unlocked: true };
+          if (isUnlocked) {
             newlyUnlocked.push({
               id: ach.id,
               type: 'achievement',
@@ -199,12 +201,7 @@ export default function App() {
               rewardCoins: ach.rewardCoins,
               rewardXp: ach.rewardXp,
             });
-            return unlockedItem;
-          }
-
-          if (newProgress !== ach.progress) {
-            hasChanges = true;
-            return { ...ach, progress: newProgress, unlocked: isUnlocked };
+            return { ...ach, progress: newProgress, unlocked: true };
           }
 
           return ach;
@@ -212,9 +209,6 @@ export default function App() {
 
         if (newlyUnlocked.length > 0) {
           setToastQueue((prev) => [...prev, ...newlyUnlocked]);
-        }
-
-        if (hasChanges) {
           saveAchievements(updated);
           return updated;
         }
@@ -225,11 +219,11 @@ export default function App() {
       // 2. Check Daily Quests
       setQuests((prevQuests) => {
         const newlyCompletedQuests: ToastItem[] = [];
-        let questChanges = false;
 
         const updatedQuests = prevQuests.map((q) => {
-          let newProgress = q.progress;
+          if (q.completed) return q;
 
+          let newProgress = q.progress;
           if (q.id === 'quest_1') {
             newProgress = Math.max(q.progress, liveStats.golden);
           } else if (q.id === 'quest_2') {
@@ -240,8 +234,7 @@ export default function App() {
 
           const isCompleted = newProgress >= q.target;
 
-          if (isCompleted && !q.completed) {
-            questChanges = true;
+          if (isCompleted) {
             newlyCompletedQuests.push({
               id: q.id,
               type: 'quest',
@@ -254,19 +247,11 @@ export default function App() {
             return { ...q, progress: newProgress, completed: true };
           }
 
-          if (newProgress !== q.progress) {
-            questChanges = true;
-            return { ...q, progress: newProgress, completed: isCompleted };
-          }
-
           return q;
         });
 
         if (newlyCompletedQuests.length > 0) {
           setToastQueue((prev) => [...prev, ...newlyCompletedQuests]);
-        }
-
-        if (questChanges) {
           localStorage.setItem('star_tap_daily_quests', JSON.stringify(updatedQuests));
           return updatedQuests;
         }
@@ -274,7 +259,7 @@ export default function App() {
         return prevQuests;
       });
     },
-    [playerState.stats.totalStarsTapped, playerState.stats.diamondTapped]
+    [playerState.stats.totalStarsTapped, playerState.stats.diamondTapped, playerState.stats.goldenTapped]
   );
 
   // Initialize Firebase Auth, Realtime Cloud Sync, AdMob & Push Notifications
@@ -565,24 +550,29 @@ export default function App() {
       const passBonusXp = campaignResult?.isVictory ? 100 : 0;
       const totalPassXpGained = basePassXp + passBonusXp;
 
-      let nextPass = playerState.cosmicPass || {
+      let nextPass: CosmicPassState = playerState.cosmicPass || {
+        seasonNumber: 1,
         seasonId: 'season_1',
         seasonName: 'Temporada 1: Génesis Cósmica',
         seasonNameEn: 'Season 1: Cosmic Genesis',
+        endsAt: new Date(Date.now() + 30 * 86400000).toISOString(),
         currentTier: 1,
         currentXp: 0,
         xpPerTier: 1000,
         maxTier: 30,
+        isVipUnlocked: false,
         hasVipPass: false,
         claimedFreeTiers: [],
         claimedVipTiers: [],
         seasonEndTimestamp: Date.now() + 30 * 86400000,
       };
 
-      let nextPassXp = nextPass.currentXp + totalPassXpGained;
-      let nextPassTier = nextPass.currentTier;
-      while (nextPassXp >= nextPass.xpPerTier && nextPassTier < nextPass.maxTier) {
-        nextPassXp -= nextPass.xpPerTier;
+      let nextPassXp = (nextPass.currentXp || 0) + totalPassXpGained;
+      let nextPassTier = nextPass.currentTier || 1;
+      const xpPerTier = nextPass.xpPerTier || 1000;
+      const maxTier = nextPass.maxTier || 30;
+      while (nextPassXp >= xpPerTier && nextPassTier < maxTier) {
+        nextPassXp -= xpPerTier;
         nextPassTier += 1;
       }
       nextPass = {
@@ -693,6 +683,15 @@ export default function App() {
         }
       }
 
+      // Track game played in Firebase Analytics
+      trackGameEvent('game_end', {
+        mode: gameMode,
+        score: finalScore,
+        coins_earned: coinsGained,
+        stars_tapped: finalStats.starsTapped,
+        level: nextLevel,
+      });
+
       // Update Quests Progress
       setQuests((prevQuests) => {
         const updated = prevQuests.map((q) => {
@@ -779,7 +778,8 @@ export default function App() {
         campaignResult,
       });
 
-      // Launch native AdMob Interstitial placement (does not grant rewards)
+      // Launch native AdMob Interstitial placement (with policy frequency capping)
+      notifyMatchFinishedForAds();
       showInterstitialAd().catch((err) =>
         console.warn('AdMob Interstitial trigger error:', err)
       );
@@ -1710,14 +1710,17 @@ export default function App() {
     soundManager.playLevelUp();
     hapticManager.success();
     setPlayerState((prev) => {
-      const pass = prev.cosmicPass || {
+      const pass: CosmicPassState = prev.cosmicPass || {
+        seasonNumber: 1,
         seasonId: 'season_1',
         seasonName: 'Temporada 1: Génesis Cósmica',
         seasonNameEn: 'Season 1: Cosmic Genesis',
+        endsAt: new Date(Date.now() + 30 * 86400000).toISOString(),
         currentTier: 1,
         currentXp: 0,
         xpPerTier: 1000,
         maxTier: 30,
+        isVipUnlocked: false,
         hasVipPass: false,
         claimedFreeTiers: [],
         claimedVipTiers: [],
@@ -1774,14 +1777,17 @@ export default function App() {
     soundManager.playLevelUp();
     hapticManager.success();
     setPlayerState((prev) => {
-      const pass = prev.cosmicPass || {
+      const pass: CosmicPassState = prev.cosmicPass || {
+        seasonNumber: 1,
         seasonId: 'season_1',
         seasonName: 'Temporada 1: Génesis Cósmica',
         seasonNameEn: 'Season 1: Cosmic Genesis',
+        endsAt: new Date(Date.now() + 30 * 86400000).toISOString(),
         currentTier: 1,
         currentXp: 0,
         xpPerTier: 1000,
         maxTier: 30,
+        isVipUnlocked: false,
         hasVipPass: false,
         claimedFreeTiers: [],
         claimedVipTiers: [],
@@ -1818,7 +1824,7 @@ export default function App() {
         }
       });
 
-      const nextPass = {
+      const nextPass: CosmicPassState = {
         ...pass,
         claimedFreeTiers: Array.from(freeClaimed),
         claimedVipTiers: Array.from(vipClaimed),
@@ -1845,14 +1851,17 @@ export default function App() {
     soundManager.playLevelUp();
     hapticManager.success();
     setPlayerState((prev) => {
-      const pass = prev.cosmicPass || {
+      const pass: CosmicPassState = prev.cosmicPass || {
+        seasonNumber: 1,
         seasonId: 'season_1',
         seasonName: 'Temporada 1: Génesis Cósmica',
         seasonNameEn: 'Season 1: Cosmic Genesis',
+        endsAt: new Date(Date.now() + 30 * 86400000).toISOString(),
         currentTier: 1,
         currentXp: 0,
         xpPerTier: 1000,
         maxTier: 30,
+        isVipUnlocked: false,
         hasVipPass: false,
         claimedFreeTiers: [],
         claimedVipTiers: [],
@@ -1864,6 +1873,7 @@ export default function App() {
         coins: prev.coins - priceCoins,
         cosmicPass: {
           ...pass,
+          isVipUnlocked: true,
           hasVipPass: true,
         },
       };
@@ -1996,8 +2006,11 @@ export default function App() {
 
   return (
     <div className={`w-full h-[100dvh] min-h-[100dvh] ${getThemeBackground()} flex flex-col items-center justify-center overflow-hidden font-sans select-none safe-pt safe-pb relative`}>
+      {/* Dynamic Cosmic Space Nebulae and Twinkling Stars */}
+      <CosmicBackground theme={playerState.equippedTheme} />
+
       {/* Subtle AAA CRT / Holographic Scanline Overlay */}
-      <div className="absolute inset-0 aaa-scanlines z-50 pointer-events-none opacity-40" />
+      <div className="absolute inset-0 aaa-scanlines z-50 pointer-events-none opacity-30" />
 
       {/* Outer Shell Wrapper (Fluid Responsive or Mobile Frame View) */}
       <div
@@ -2361,6 +2374,14 @@ export default function App() {
           onSpinRewardEarned={handleLuckySpinReward}
           onWatchAdForSpin={handleWatchAdForSpin}
           onClose={() => setShowLuckySpinModal(false)}
+          onOpenDailyRewards={() => {
+            setShowLuckySpinModal(false);
+            setShowDailyBonusModal(true);
+          }}
+          onOpenFriends={() => {
+            setShowLuckySpinModal(false);
+            setActiveModal('friends');
+          }}
         />
       )}
 

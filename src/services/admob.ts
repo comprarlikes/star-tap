@@ -27,15 +27,17 @@ export const ADMOB_TEST_IDS = {
 };
 
 export const ADMOB_PRODUCTION_IDS = {
-  appId: 'ca-app-pub-4623925469377930~9302870404',
-  interstitial: 'ca-app-pub-4623925469377930/5770819509',
-  rewarded: 'ca-app-pub-4623925469377930/5770819509',
-  appOpen: 'ca-app-pub-4623925469377930/8716547044',
-  banner: 'ca-app-pub-3940256099942544/6300978111',
+  appId: 'ca-app-pub-4623925469377930~4249845506',
+  interstitial: 'ca-app-pub-4623925469377930/6127223325',
+  rewarded: 'ca-app-pub-4623925469377930/6023367264',
+  appOpen: 'ca-app-pub-4623925469377930/4687158309',
+  banner: 'ca-app-pub-4623925469377930/9112565033',
 };
 
-// Check if running in development environment
-const isDevelopment = process.env.NODE_ENV !== 'production';
+// Check if running in development environment safely without crashing in browser
+const isDevelopment = typeof process !== 'undefined' && process.env?.NODE_ENV
+  ? process.env.NODE_ENV !== 'production'
+  : (import.meta as any)?.env?.DEV ?? false;
 
 export function getAdMobIds() {
   return isDevelopment ? ADMOB_TEST_IDS : ADMOB_PRODUCTION_IDS;
@@ -345,16 +347,28 @@ export async function showRewardedAd(): Promise<RewardedAdResult> {
 }
 
 /**
+ * Interstitial Frequency & Policy Protection (Google Play Better Ads compliance)
+ */
+let lastInterstitialTime = 0;
+let matchesPlayedSinceLastInterstitial = 0;
+const MIN_INTERSTITIAL_INTERVAL_MS = 60000; // 60 seconds minimum interval
+
+export function notifyMatchFinishedForAds() {
+  matchesPlayedSinceLastInterstitial++;
+}
+
+/**
  * SHOW INTERSTITIAL AD (Real AdMob SDK flow only)
  *
  * Flow:
  * 1. Checks if ad is already showing.
- * 2. Checks native platform availability.
- * 3. Prepares Interstitial via AdMob SDK.
- * 4. Shows Interstitial.
- * 5. DOES NOT GRANT ANY REWARDS OR MODIFY USER CURRENCY/XP.
+ * 2. Checks cooldown and frequency capping to comply with Google Play policies.
+ * 3. Checks native platform availability.
+ * 4. Prepares Interstitial via AdMob SDK.
+ * 5. Shows Interstitial.
+ * 6. DOES NOT GRANT ANY REWARDS OR MODIFY USER CURRENCY/XP.
  */
-export async function showInterstitialAd(): Promise<InterstitialAdResult> {
+export async function showInterstitialAd(options?: { force?: boolean }): Promise<InterstitialAdResult> {
   // Prevent duplicate concurrent ad requests
   if (state.isInterstitialShowing || state.isRewardedShowing) {
     console.warn('[AdMob Interstitial] An ad is already displaying.');
@@ -364,6 +378,19 @@ export async function showInterstitialAd(): Promise<InterstitialAdResult> {
   if (state.isInterstitialLoading) {
     console.warn('[AdMob Interstitial] An interstitial is currently loading.');
     return { success: false, error: 'ad_loading' };
+  }
+
+  // Frequency capping check (avoid spamming interstitials every 15 seconds)
+  const now = Date.now();
+  if (!options?.force) {
+    if (lastInterstitialTime > 0 && now - lastInterstitialTime < MIN_INTERSTITIAL_INTERVAL_MS) {
+      console.log('[AdMob Interstitial] Cooldown active (minimum 60s between ads). Skipping.');
+      return { success: false, error: 'cooldown_active' };
+    }
+    if (lastInterstitialTime > 0 && matchesPlayedSinceLastInterstitial < 2) {
+      console.log('[AdMob Interstitial] Frequency cap: at least 2 games needed between ads. Skipping.');
+      return { success: false, error: 'frequency_cap' };
+    }
   }
 
   // Web Browser Fallback: Real AdMob is only available on native Android/iOS
@@ -408,6 +435,8 @@ export async function showInterstitialAd(): Promise<InterstitialAdResult> {
 
       AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
         console.log('[AdMob Event] onInterstitialAdDismissed: Interstitial ad closed.');
+        lastInterstitialTime = Date.now();
+        matchesPlayedSinceLastInterstitial = 0;
         cleanup();
         resolve({ success: true });
       }).then((handle) => handles.push(handle));

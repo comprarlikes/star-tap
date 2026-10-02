@@ -21,9 +21,12 @@ interface MultiplayerResultModalProps {
   playerState: PlayerState;
   opponent: MultiplayerOpponent;
   arena: MultiplayerArena;
+  trophiesDelta?: number;
+  coinsDelta?: number;
   language?: 'es' | 'en';
   onRematch: () => void;
   onBackToLobby: () => void;
+  onGoHome?: () => void;
 }
 
 export const MultiplayerResultModal: React.FC<MultiplayerResultModalProps> = ({
@@ -37,6 +40,7 @@ export const MultiplayerResultModal: React.FC<MultiplayerResultModalProps> = ({
   language = 'es',
   onRematch,
   onBackToLobby,
+  onGoHome,
 }) => {
   const [displayedCoins, setDisplayedCoins] = useState<number>(0);
   const [displayedTrophies, setDisplayedTrophies] = useState<number>(0);
@@ -78,15 +82,22 @@ export const MultiplayerResultModal: React.FC<MultiplayerResultModalProps> = ({
   }, [isWinner, earnedCoins, trophyDelta]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in select-none">
-      <div className="bg-slate-900 border border-purple-500/40 rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden flex flex-col p-6 sm:p-7 relative text-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-xl animate-fade-in select-none">
+      <div className="bg-slate-900/98 border border-purple-500/40 ring-1 ring-purple-400/20 rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] max-w-md w-full overflow-hidden flex flex-col p-6 sm:p-7 relative text-center">
+        {/* Holographic Top Laser Accent */}
         <div
-          className={`absolute top-0 inset-x-0 h-2 ${
+          className={`absolute top-0 inset-x-0 h-1.5 animate-shimmer z-30 ${
             isWinner
               ? 'bg-gradient-to-r from-amber-400 via-yellow-300 to-emerald-400'
               : 'bg-gradient-to-r from-rose-500 via-purple-600 to-slate-700'
           }`}
         />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className={`aaa-hud-corner-tl ${isWinner ? 'text-amber-400/80' : 'text-rose-400/80'} pointer-events-none`} />
+        <div className={`aaa-hud-corner-tr ${isWinner ? 'text-amber-400/80' : 'text-rose-400/80'} pointer-events-none`} />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
 
         {/* Victory / Defeat Badge */}
         <div className="my-2 flex flex-col items-center">
@@ -202,10 +213,22 @@ export const MultiplayerResultModal: React.FC<MultiplayerResultModalProps> = ({
               soundManager.playButtonClick();
               onBackToLobby();
             }}
-            className="px-5 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs sm:text-sm rounded-2xl border border-slate-700 transition-all active:scale-95 cursor-pointer"
+            className="px-4 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs sm:text-sm rounded-2xl border border-slate-700 transition-all active:scale-95 cursor-pointer"
           >
             {language === 'en' ? 'Lobby' : 'Lobby'}
           </button>
+
+          {onGoHome && (
+            <button
+              onClick={() => {
+                soundManager.playButtonClick();
+                onGoHome();
+              }}
+              className="px-4 py-3.5 bg-slate-900/90 hover:bg-slate-800 text-slate-300 font-bold text-xs sm:text-sm rounded-2xl border border-slate-700 transition-all active:scale-95 cursor-pointer"
+            >
+              {language === 'en' ? 'Home' : 'Inicio'}
+            </button>
+          )}
         </div>
       </div>
     </div>

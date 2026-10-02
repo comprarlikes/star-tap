@@ -1,17 +1,30 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" style="background-color: #0b0f17;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0f17" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Star Tap Arcade</title>
     <meta name="description" content="Un juego arcade de toques súper adictivo con modo multijugador 1v1 en tiempo real, arenas competitivas, showdown cinematográfico, estrellas especiales, bombas, multiplicadores, combos, misiones diarias, tienda de personajes, skins y clasificación global." />
     <meta property="og:title" content="Star Tap Arcade" />
     <meta property="og:description" content="Un juego arcade de toques súper adictivo con modo multijugador 1v1 en tiempo real, arenas competitivas, showdown cinematográfico, estrellas especiales, bombas, multiplicadores, combos, misiones diarias, tienda de personajes, skins y clasificación global." />
+    <style>
+      html, body, #root {
+        background-color: #0b0f17;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+      }
+    </style>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="background-color: #0b0f17; margin: 0; padding: 0;">
+    <div id="root" style="background-color: #0b0f17;"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -101,22 +101,36 @@ export const MysteryBoxModal: React.FC<MysteryBoxModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-xl animate-fade-in">
-      <div className="w-full max-w-md bg-slate-900 border border-amber-500/30 rounded-[2rem] text-white shadow-2xl flex flex-col overflow-hidden relative">
-        {/* Header Bar */}
-        <div className="px-5 py-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-xl animate-fade-in select-none">
+      <div className="w-full max-w-md bg-slate-900/98 border border-amber-500/40 ring-1 ring-amber-400/20 rounded-[2rem] sm:rounded-[2.5rem] text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden relative">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
+
+        {/* Header Bar Bento Tile */}
+        <div className="px-5 py-4 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-gradient-to-tr from-amber-500 to-yellow-300 text-slate-950 rounded-2xl shadow-lg">
+            <div className="p-2.5 bg-gradient-to-tr from-amber-500/20 to-yellow-400/20 text-amber-400 rounded-2xl border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
               <Gift className="w-5 h-5 animate-bounce" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-white tracking-tight">CAJA DE SORPRESAS</h3>
+              <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                CAJA DE SORPRESAS
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 font-mono uppercase">
+                  LOOT
+                </span>
+              </h3>
               <p className="text-[10px] text-amber-300 font-medium">¡Monedas, Potenciadores y Skins Raras!</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-2xl border border-amber-500/30 text-amber-400 font-extrabold text-xs shadow-inner">
+            <div className="flex items-center gap-1.5 bg-slate-950/90 px-3 py-1.5 rounded-2xl border border-amber-500/40 text-amber-400 font-extrabold text-xs shadow-inner">
               <span>🪙</span>
               <span>{playerState.coins.toLocaleString()}</span>
             </div>
@@ -126,7 +140,7 @@ export const MysteryBoxModal: React.FC<MysteryBoxModalProps> = ({
                 soundManager.playButtonClick();
                 onClose();
               }}
-              className="p-2 bg-slate-800/80 hover:bg-slate-700/80 rounded-2xl text-slate-400 hover:text-white border border-slate-700/60 transition-all active:scale-95"
+              className="p-2 bg-slate-800/90 hover:bg-slate-700/90 rounded-2xl text-slate-400 hover:text-white border border-slate-700/80 transition-all active:scale-95 cursor-pointer shadow"
             >
               <X className="w-4 h-4" />
             </button>

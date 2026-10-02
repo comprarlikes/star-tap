@@ -4,6 +4,42 @@ import { INITIAL_COSMIC_PASS } from '../data/cosmicPass';
 const LOCAL_STORAGE_KEY = 'star_tap_arcade_player_state_v1';
 const LOCAL_LEADERBOARD_KEY = 'star_tap_arcade_leaderboard_v1';
 
+// Resilient memory store fallback if third-party cookies or storage are restricted in iframe
+const memoryFallbackStore = new Map<string, string>();
+
+export const safeStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+    } catch {
+      // Storage access blocked or restricted
+    }
+    return memoryFallbackStore.get(key) ?? null;
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch {
+      // Storage access blocked or restricted
+    }
+    memoryFallbackStore.set(key, value);
+  },
+  removeItem: (key: string): void => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(key);
+      }
+    } catch {
+      // Storage access blocked or restricted
+    }
+    memoryFallbackStore.delete(key);
+  },
+};
+
 export const INITIAL_PLAYER_STATE: PlayerState = {
   name: 'Jugador Estelar',
   avatar: 'astro_commander',
@@ -780,9 +816,9 @@ export const INITIAL_LEADERBOARD: LeaderboardEntry[] = [
 
 export function generateDailyQuests(): Quest[] {
   const todayStr = new Date().toISOString().split('T')[0];
-  const storedDate = localStorage.getItem('star_tap_quest_date');
+  const storedDate = safeStorage.getItem('star_tap_quest_date');
 
-  const storedQuests = localStorage.getItem('star_tap_daily_quests');
+  const storedQuests = safeStorage.getItem('star_tap_daily_quests');
   if (storedDate === todayStr && storedQuests) {
     try {
       return JSON.parse(storedQuests);
@@ -830,14 +866,14 @@ export function generateDailyQuests(): Quest[] {
     },
   ];
 
-  localStorage.setItem('star_tap_quest_date', todayStr);
-  localStorage.setItem('star_tap_daily_quests', JSON.stringify(quests));
+  safeStorage.setItem('star_tap_quest_date', todayStr);
+  safeStorage.setItem('star_tap_daily_quests', JSON.stringify(quests));
   return quests;
 }
 
 export function savePlayerState(state: PlayerState) {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+    safeStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     console.error('Failed to save player state:', e);
   }
@@ -845,7 +881,7 @@ export function savePlayerState(state: PlayerState) {
 
 export function loadPlayerState(): PlayerState {
   try {
-    const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const data = safeStorage.getItem(LOCAL_STORAGE_KEY);
     if (data) {
       const parsed = JSON.parse(data);
       return {
@@ -896,7 +932,7 @@ export function loadPlayerState(): PlayerState {
 
 export function loadAchievements(): Achievement[] {
   try {
-    const data = localStorage.getItem('star_tap_achievements');
+    const data = safeStorage.getItem('star_tap_achievements');
     if (data) {
       const parsed: Achievement[] = JSON.parse(data);
       // Merge with initial in case new achievements were added or categories updated
@@ -924,7 +960,7 @@ export function loadAchievements(): Achievement[] {
 
 export function saveAchievements(achievements: Achievement[]) {
   try {
-    localStorage.setItem('star_tap_achievements', JSON.stringify(achievements));
+    safeStorage.setItem('star_tap_achievements', JSON.stringify(achievements));
   } catch (e) {
     console.error('Failed to save achievements:', e);
   }
@@ -932,7 +968,7 @@ export function saveAchievements(achievements: Achievement[]) {
 
 export function loadLeaderboard(): LeaderboardEntry[] {
   try {
-    const data = localStorage.getItem(LOCAL_LEADERBOARD_KEY);
+    const data = safeStorage.getItem(LOCAL_LEADERBOARD_KEY);
     if (data) {
       return JSON.parse(data);
     }
@@ -944,7 +980,7 @@ export function loadLeaderboard(): LeaderboardEntry[] {
 
 export function saveLeaderboard(leaderboard: LeaderboardEntry[]) {
   try {
-    localStorage.setItem(LOCAL_LEADERBOARD_KEY, JSON.stringify(leaderboard));
+    safeStorage.setItem(LOCAL_LEADERBOARD_KEY, JSON.stringify(leaderboard));
   } catch (e) {
     console.error('Failed to save leaderboard:', e);
   }

@@ -82,10 +82,18 @@ export const TalentsModal: React.FC<TalentsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-xl animate-fade-in select-none">
-      <div className="relative w-full max-w-4xl max-h-[92dvh] bg-slate-900/95 border border-slate-700/80 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-white">
+      <div className="relative w-full max-w-4xl max-h-[92dvh] bg-slate-900/98 border border-purple-500/40 ring-1 ring-purple-400/20 rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden text-white">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-purple-400 via-pink-500 to-amber-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-purple-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-purple-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
         
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-slate-800 bg-slate-950/70 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-slate-800/80 bg-slate-950/90 shrink-0 relative z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-pink-600 to-rose-500 flex items-center justify-center shadow-lg shadow-purple-500/20 text-white font-black text-xl">
               🔮
@@ -106,14 +114,14 @@ export const TalentsModal: React.FC<TalentsModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowHelp((v) => !v)}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer"
+              className="p-2 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 text-slate-400 hover:text-white border border-slate-700/80 transition-all cursor-pointer shadow active:scale-95"
               title={isEn ? 'How it works' : 'Cómo funciona'}
             >
               <HelpCircle className="w-5 h-5" />
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer"
+              className="p-2 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 text-slate-400 hover:text-white border border-slate-700/80 transition-all cursor-pointer shadow active:scale-95"
               title={isEn ? 'Close' : 'Cerrar'}
             >
               <X className="w-5 h-5" />

@@ -172,20 +172,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-slate-900 border border-amber-500/30 rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4 relative overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-xl flex items-center justify-center p-4 animate-fade-in select-none">
+      <div className="bg-slate-900/98 border border-amber-500/40 ring-1 ring-amber-400/20 rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-6 w-full max-w-md shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] space-y-4 relative overflow-hidden">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
+
         {/* Background glow effects */}
         <div className="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        {/* Header Bento Tile */}
+        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 relative z-10">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-gradient-to-tr from-amber-500 to-yellow-300 text-slate-950 rounded-2xl font-black shadow-md">
+            <div className="p-2.5 bg-gradient-to-tr from-amber-500/20 to-yellow-400/20 text-amber-400 rounded-2xl border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
               <ShieldCheck className="w-5 h-5" />
             </div>
-            <div className="flex flex-col">
-              <h3 className="text-lg font-black text-white tracking-tight">
+            <div className="flex flex-col text-left">
+              <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-1.5">
                 {t('accountTitle', lang)}
               </h3>
               <span className="text-[11px] text-slate-400 font-medium">
@@ -199,7 +208,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               soundManager.playButtonClick();
               onClose();
             }}
-            className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition-colors"
+            className="p-2 rounded-2xl bg-slate-800/90 hover:bg-slate-700/90 text-slate-400 hover:text-white border border-slate-700/80 transition-all active:scale-95 shadow cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

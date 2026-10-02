@@ -161,8 +161,8 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
   const highestStreak = playerState?.stats.highestStreak || curStreak;
   const arenasCount = (playerState?.stats.arenasPlayed || []).length;
   const starsTapped = playerState?.stats.totalStarsTapped || 0;
-  const maxCombo = playerState?.stats.maxCombo || 0;
-  const highScore = playerState?.stats.highScore || 0;
+  const maxCombo = playerState?.stats.maxCombo || playerState?.stats.highestCombo || 0;
+  const highScore = playerState?.stats.highScore || playerState?.stats.highestScore || 0;
   const bombsAvoided = playerState?.stats.bombsAvoided || 0;
   const playerLevel = playerState?.level || 1;
   const totalCoinsEarned = playerState?.stats.totalCoinsEarned || 0;
@@ -170,12 +170,20 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-xl animate-fade-in select-none">
-      <div className="w-full max-w-2xl h-[90vh] max-h-[840px] bg-slate-900/98 border border-slate-800 rounded-[2.5rem] text-white shadow-2xl flex flex-col overflow-hidden relative">
+      <div className="w-full max-w-2xl h-[90vh] max-h-[840px] bg-slate-900/98 border border-amber-500/40 ring-1 ring-amber-400/20 rounded-[2rem] sm:rounded-[2.5rem] text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden relative">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
         
         {/* Header Bento Tile */}
-        <div className="px-5 sm:px-6 py-4 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between relative">
+        <div className="px-5 sm:px-6 py-4 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-amber-500/10 text-amber-400 rounded-2xl border border-amber-500/20 shadow-inner">
+            <div className="p-3 bg-gradient-to-tr from-amber-500/20 to-yellow-400/20 text-amber-400 rounded-2xl border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
               <Award className="w-6 h-6" />
             </div>
             <div className="flex flex-col text-left">
@@ -184,7 +192,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                   {t('achievementsTitle', lang)}
                 </h3>
                 {totalReadyToClaim > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 animate-bounce">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 animate-bounce shadow">
                     {totalReadyToClaim} {lang === 'en' ? 'READY' : 'LISTO'}
                   </span>
                 )}
@@ -201,7 +209,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
             {tabReadyCount > 0 && (
               <button
                 onClick={handleClaimAll}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-xs hover:scale-105 active:scale-95 transition-all shadow-md"
+                className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-b from-yellow-300 via-amber-400 to-amber-500 text-slate-950 font-black text-xs shadow-[0_3px_0_#b45309] hover:shadow-[0_4px_0_#b45309] transition-all active:translate-y-[2px] active:shadow-[0_1px_0_#b45309] cursor-pointer"
               >
                 <Gift className="w-3.5 h-3.5" />
                 {lang === 'en' ? `CLAIM ALL (${tabReadyCount})` : `RECLAMAR (${tabReadyCount})`}
@@ -213,7 +221,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                 soundManager.playButtonClick();
                 onClose();
               }}
-              className="p-2.5 bg-slate-800/80 hover:bg-slate-700/80 rounded-2xl text-slate-400 hover:text-white border border-slate-700/60 transition-all active:scale-95"
+              className="p-2.5 bg-slate-800/90 hover:bg-slate-700/90 rounded-2xl text-slate-400 hover:text-white border border-slate-700/80 transition-all active:scale-95 cursor-pointer shadow"
             >
               <X className="w-4 h-4" />
             </button>

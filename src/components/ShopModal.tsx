@@ -80,24 +80,36 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-xl animate-fade-in">
-      <div className="w-full max-w-md h-[88vh] bg-slate-900/90 border border-slate-800 rounded-[2rem] text-white shadow-2xl flex flex-col overflow-hidden relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-xl animate-fade-in select-none">
+      <div className="w-full max-w-md h-[88vh] bg-slate-900/95 border border-amber-500/40 ring-1 ring-amber-400/20 rounded-[2rem] sm:rounded-[2.5rem] text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden relative">
+        {/* Holographic Top Laser Accent */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 animate-shimmer z-30" />
+
+        {/* AAA Corner Telemetry Brackets */}
+        <div className="aaa-hud-corner-tl text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-tr text-amber-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-bl text-cyan-400/80 pointer-events-none" />
+        <div className="aaa-hud-corner-br text-cyan-400/80 pointer-events-none" />
+
         {/* Header Bento Tile */}
-        <div className="px-5 py-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-5 py-4 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-2xl border border-amber-500/20">
+            <div className="p-2.5 bg-gradient-to-tr from-amber-500/20 to-yellow-400/20 text-amber-400 rounded-2xl border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
               <ShoppingBag className="w-5 h-5" />
             </div>
             <div className="flex flex-col text-left">
-              <h3 className="text-lg font-black text-white tracking-tight">TIENDA ARCADE</h3>
-              <span className="text-[10px] text-amber-300 font-bold">Avatares y Objetos Exclusivos</span>
+              <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-1.5">
+                TIENDA ARCADE
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 font-mono uppercase">BAZAR</span>
+              </h3>
+              <span className="text-[10px] text-amber-300/90 font-bold">Avatares, Skins y Objetos Exclusivos</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-2xl border border-amber-500/30 text-amber-400 font-extrabold text-xs shadow-inner">
-              <span className="text-sm">🪙</span>
-              <span>{playerState.coins.toLocaleString()}</span>
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 bg-slate-950/90 px-3 py-1.5 rounded-2xl border border-amber-500/40 text-amber-300 font-black text-xs shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+              <span className="text-sm animate-pulse">🪙</span>
+              <span className="font-mono tracking-tight">{playerState.coins.toLocaleString()}</span>
             </div>
 
             <button
@@ -105,7 +117,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                 soundManager.playButtonClick();
                 onClose();
               }}
-              className="p-2 bg-slate-800/80 hover:bg-slate-700/80 rounded-2xl text-slate-400 hover:text-white border border-slate-700/60 transition-all active:scale-95 cursor-pointer"
+              className="p-2 bg-slate-800/90 hover:bg-slate-700/90 rounded-2xl text-slate-400 hover:text-white border border-slate-700/80 transition-all active:scale-95 cursor-pointer shadow"
             >
               <X className="w-4 h-4" />
             </button>
@@ -571,30 +583,31 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => handleOpen3DPreview(item)}
-                    className="p-2 bg-slate-800/80 hover:bg-slate-700 text-cyan-300 rounded-xl border border-cyan-500/30 transition-all hover:scale-105 active:scale-95"
+                    className="p-2 bg-slate-800/90 hover:bg-slate-700 text-cyan-300 rounded-xl border border-cyan-500/40 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
                     title="Vista Previa 3D"
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
 
                   {equipped ? (
-                    <div className="p-2 bg-amber-500 text-slate-950 rounded-xl font-bold">
-                      <Check className="w-4 h-4" />
+                    <div className="px-3 py-1.5 bg-gradient-to-b from-amber-400 to-amber-500 text-slate-950 rounded-xl font-black text-xs shadow-[0_3px_0_#b45309] flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      <span>ACTIVO</span>
                     </div>
                   ) : unlocked ? (
                     <button
                       onClick={() => handleAction(item)}
-                      className="px-4 py-2 bg-slate-800/80 hover:bg-slate-700/80 text-white font-bold text-xs rounded-xl border border-slate-700/60 transition-all active:scale-95 cursor-pointer"
+                      className="px-4 py-2 bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-black text-xs rounded-xl shadow-[0_3px_0_#065f46] hover:shadow-[0_4px_0_#065f46] transition-all active:translate-y-[2px] active:shadow-[0_1px_0_#065f46] cursor-pointer"
                     >
                       EQUIPAR
                     </button>
                   ) : (
                     <button
                       onClick={() => handleOpen3DPreview(item)}
-                      className={`px-3 py-2 rounded-xl font-extrabold text-xs transition-all flex items-center gap-1 cursor-pointer ${
+                      className={`px-3 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-1 cursor-pointer ${
                         playerState.coins >= item.price
-                          ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 hover:scale-105 active:scale-95 shadow-md'
-                          : 'bg-slate-800/80 text-slate-500 border border-slate-700/60 opacity-60'
+                          ? 'bg-gradient-to-b from-yellow-300 via-amber-400 to-amber-500 text-slate-950 shadow-[0_3px_0_#b45309] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_#b45309]'
+                          : 'bg-slate-800/90 text-slate-500 border border-slate-700/60 opacity-60'
                       }`}
                     >
                       <span>🪙 {item.price}</span>

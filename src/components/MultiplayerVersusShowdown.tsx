@@ -575,7 +575,7 @@ export const MultiplayerVersusShowdown: React.FC<MultiplayerVersusShowdownProps>
                     {isEn ? 'LIVE 1v1 SHOWDOWN' : '¡DUELO 1v1 EN DIRECTO!'}
                   </div>
                   <div className="text-xs sm:text-sm font-black text-white tracking-wider">
-                    {arena.entryFeeCoins > 0 ? `${arena.entryFeeCoins} 🪙 ENTRY` : 'FREE ARENA'}
+                    {(arena.entryFeeCoins ?? arena.entryFee ?? 0) > 0 ? `${arena.entryFeeCoins ?? arena.entryFee} 🪙 ENTRY` : 'FREE ARENA'}
                   </div>
                 </div>
               </div>
